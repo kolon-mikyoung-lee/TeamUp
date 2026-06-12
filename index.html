@@ -72,6 +72,14 @@ function cn(...inputs) {
   return inputs.filter(Boolean).join(' ');
 }
 
+const REGIONS = ['수도권', '지방'];
+
+function regionBadgeClass(region) {
+  return region === '지방'
+    ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+    : 'bg-indigo-50 text-indigo-600 border border-indigo-100';
+}
+
 function pad2(n) { return String(n).padStart(2, '0'); }
 
 function formatFullDate(dateStr) {
@@ -127,12 +135,30 @@ const LogOutIcon    = (p) => <Svg {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 
 const PencilIcon    = (p) => <Svg {...p}><path d="M21.17 6.83a2.85 2.85 0 0 0-4-4L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z" /><path d="m15 5 4 4" /></Svg>;
 
 /* ─────────────────────────────────────────────
-   관리자 설정
-   ※ 비밀번호를 변경하려면 아래 값을 수정하세요.
-   ※ 주의: 공개 HTML 특성상 소스 보기로 노출될 수 있는
-      간이 잠금장치입니다. (무단 조작 방지용)
+   ★ Google Apps Script 연동 설정 ★
+   1) apps-script-code.gs를 스프레드시트의 Apps Script에 설치/배포
+   2) 발급된 웹 앱 URL(https://script.google.com/macros/s/.../exec)을
+      아래 API_URL의 따옴표 안에 붙여넣으세요.
 ───────────────────────────────────────────── */
-const ADMIN_PASSWORD = 'kolon2026';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwVeDHP32fAHwoSn7f4Gr7oi7iTHZzG0hAbMwqYd1AeZMnKbVNHogFIgBsqrQMl-H5hTg/exec';
+
+const API_CONFIGURED = API_URL.indexOf('https://script.google.com/') === 0;
+
+async function apiGet() {
+  const res = await fetch(API_URL + '?action=getData');
+  if (!res.ok) throw new Error('서버 응답 오류');
+  return res.json();
+}
+
+async function apiPost(payload) {
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error('서버 응답 오류');
+  return res.json();
+}
 
 /* ─────────────────────────────────────────────
    과목 메타데이터
@@ -171,63 +197,19 @@ const COURSE_METADATA = {
 };
 const COURSE_NAMES = Object.keys(COURSE_METADATA);
 
-/* ─────────────────────────────────────────────
-   초기 일정 데이터 (2026년 7월 ~ 12월, 과목당 10회 / 총 60회)
-───────────────────────────────────────────── */
+/* 엑셀 파일명용 날짜 포맷 */
 function toISO(d) {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
-function shiftOffWeekend(d) {
-  if (d.getDay() === 0) d.setDate(d.getDate() + 1); // 일 → 월
-  if (d.getDay() === 6) d.setDate(d.getDate() + 2); // 토 → 월
-  return d;
-}
-
-function buildInitialSlots() {
-  const slots = [];
-  const perMonthCounts = [2, 2, 2, 2, 1, 1]; // 7월~12월 (과목당 총 10회)
-  COURSE_NAMES.forEach((courseName, ci) => {
-    [7, 8, 9, 10, 11, 12].forEach((month, mi) => {
-      for (let k = 0; k < perMonthCounts[mi]; k++) {
-        const baseDay = 3 + ci * 2 + k * 13;
-        const d = shiftOffWeekend(new Date(2026, month - 1, baseDay));
-        slots.push({
-          id: `slot-${ci}-${month}-${k}`,
-          courseName,
-          date: toISO(d),
-          time: '10:00 ~ 16:00',
-          isBooked: false,
-          bookedWorkshopId: null,
-        });
-      }
-    });
-  });
-  return slots;
-}
-
-/* ─────────────────────────────────────────────
-   저장소 (localStorage — 사용 불가 환경에서는 메모리로 동작)
-───────────────────────────────────────────── */
-const STORAGE_KEY = 'teamup-scheduler-2026-v1';
-
-function loadState() {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed && Array.isArray(parsed.slots) && Array.isArray(parsed.workshops)) {
-        return parsed;
-      }
-    }
-  } catch (e) { /* localStorage 미지원 환경 → 기본값 사용 */ }
-  return { slots: buildInitialSlots(), workshops: [] };
-}
-
-function saveState(state) {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (e) { /* 저장 불가 환경에서는 세션 내 메모리로만 유지 */ }
+/* 서버 응답 데이터 정규화 */
+function normalizeSlots(slots) {
+  return (slots || []).map((s) => ({
+    ...s,
+    isBooked: s.isBooked === true || String(s.isBooked).toUpperCase() === 'TRUE',
+    bookedWorkshopId: s.bookedWorkshopId || null,
+    region: s.region || '수도권',
+  }));
 }
 
 /* ─────────────────────────────────────────────
@@ -270,6 +252,10 @@ function CourseScheduleList({ slots, workshops, courseStats, onSelectSlot, onSel
         <p className="text-gray-500 mt-2 text-sm leading-relaxed max-w-2xl">
           비전 수립부터 MBTI 팀 빌딩까지, 우리 팀에 꼭 필요한 과정의 월별 신청 일자를 확인하고 손쉽게 예약 신청해보세요.
         </p>
+        <div className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-2 bg-amber-50 border border-amber-100 rounded-xl text-[13px] font-bold text-amber-700">
+          <ShieldCheck className="w-4 h-4 shrink-0" />
+          지방 사업장은 <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded text-[11px] font-black mx-0.5">지방</span> 표기된 일정만 신청 가능합니다.
+        </div>
       </div>
 
       {/* Courses Grid */}
@@ -279,6 +265,8 @@ function CourseScheduleList({ slots, workshops, courseStats, onSelectSlot, onSel
           const Icon = meta.icon;
           const isSelected = expandedCourse === courseName;
           const availableCount = (courseStats[courseName] && courseStats[courseName].available) || 0;
+          const capitalCount = (courseStats[courseName] && courseStats[courseName].availableCapital) || 0;
+          const localCount = (courseStats[courseName] && courseStats[courseName].availableLocal) || 0;
           const bookedCount = (courseStats[courseName] && courseStats[courseName].booked) || 0;
 
           return (
@@ -302,10 +290,16 @@ function CourseScheduleList({ slots, workshops, courseStats, onSelectSlot, onSel
                   <Icon className="w-5 h-5" />
                 </div>
                 <div className="flex flex-col items-end gap-1 text-[10px] font-bold">
-                  {availableCount > 0 && (
-                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full flex items-center gap-0.5">
+                  {capitalCount > 0 && (
+                    <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full flex items-center gap-0.5">
                       <TrendingUp className="w-2.5 h-2.5" />
-                      신청가능 {availableCount}
+                      수도권 가능 {capitalCount}
+                    </span>
+                  )}
+                  {localCount > 0 && (
+                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full flex items-center gap-0.5">
+                      <TrendingUp className="w-2.5 h-2.5" />
+                      지방 가능 {localCount}
                     </span>
                   )}
                   {bookedCount > 0 && (
@@ -405,9 +399,12 @@ function CourseScheduleList({ slots, workshops, courseStats, onSelectSlot, onSel
                               {/* Left indicator */}
                               <div className={cn("w-2 h-10 rounded-full", isBooked ? "bg-amber-400" : "bg-blue-500")} />
                               <div>
-                                <div className="text-[16px] font-extrabold text-gray-900 flex items-center gap-1.5">
+                                <div className="text-[16px] font-extrabold text-gray-900 flex items-center gap-1.5 flex-wrap">
                                   <span>{formattedDate}</span>
                                   <span className="text-blue-600 font-black">({koreanDayName(slot.date)})</span>
+                                  <span className={cn("px-2 py-0.5 rounded-md text-[11px] font-black", regionBadgeClass(slot.region))}>
+                                    {slot.region || '수도권'}
+                                  </span>
                                 </div>
                                 <div className="text-[13px] text-gray-500 font-bold mt-1.5 flex flex-wrap items-center gap-1.5">
                                   <span>시간: {slot.time}</span>
@@ -539,6 +536,9 @@ function BookingModal({ slot, onClose, onSubmit }) {
                     <span className="inline-flex items-center gap-1">
                       <ClockIcon className="w-3.5 h-3.5 text-blue-500" />
                       {slot.time}
+                    </span>
+                    <span className={cn("px-2 py-0.5 rounded-md text-[11px] font-black", regionBadgeClass(slot.region))}>
+                      {slot.region || '수도권'}
                     </span>
                   </div>
                 </div>
@@ -690,6 +690,9 @@ function WorkshopDetailModal({ workshop, slots, onClose, onCancelBooking }) {
                   <span className="inline-flex items-center gap-1">
                     <ClockIcon className="w-3.5 h-3.5 text-blue-500" />
                     {slot.time}
+                  </span>
+                  <span className={cn("px-2 py-0.5 rounded-md text-[11px] font-black", regionBadgeClass(slot.region))}>
+                    {slot.region || '수도권'}
                   </span>
                 </div>
               )}
@@ -886,15 +889,25 @@ function SlotEditModal({ slot, onClose, onSave }) {
     courseName: slot.courseName,
     date: slot.date,
     time: slot.time,
+    region: slot.region || '수도권',
   });
+  const [busy, setBusy] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const meta = COURSE_METADATA[form.courseName];
 
   const isValid = form.date && form.time.trim();
 
-  const handleSave = () => {
-    if (!isValid) return;
-    onSave(slot, { ...form, time: form.time.trim() });
-    onClose();
+  const handleSave = async () => {
+    if (!isValid || busy) return;
+    setBusy(true);
+    setSaveError('');
+    const res = await onSave(slot, { ...form, time: form.time.trim() });
+    setBusy(false);
+    if (res && res.ok) {
+      onClose();
+    } else {
+      setSaveError((res && res.error) || '저장에 실패했습니다. 서버 연결 상태를 확인해주세요.');
+    }
   };
 
   return (
@@ -920,12 +933,21 @@ function SlotEditModal({ slot, onClose, onSave }) {
 
         {/* 수정 폼 */}
         <div className="p-6 md:p-7 space-y-4">
-          <div>
-            <label className="block text-[13px] font-extrabold text-gray-700 mb-1.5">과목</label>
-            <select value={form.courseName} onChange={(e) => setForm({ ...form, courseName: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-300 transition-all">
-              {COURSE_NAMES.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[13px] font-extrabold text-gray-700 mb-1.5">과목</label>
+              <select value={form.courseName} onChange={(e) => setForm({ ...form, courseName: e.target.value })}
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-300 transition-all">
+                {COURSE_NAMES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[13px] font-extrabold text-gray-700 mb-1.5">지역</label>
+              <select value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })}
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-300 transition-all">
+                {REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -948,21 +970,28 @@ function SlotEditModal({ slot, onClose, onSave }) {
         </div>
 
         {/* 푸터 */}
-        <div className="p-6 md:p-7 pt-0 flex gap-3">
-          <button onClick={onClose}
-            className="flex-1 px-5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl text-sm font-black transition-all active:scale-95">
-            취소
-          </button>
-          <button onClick={handleSave} disabled={!isValid}
-            className={cn(
-              "flex-[2] px-5 py-3 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-1.5",
-              isValid
-                ? "bg-blue-600 hover:bg-blue-700 text-white active:scale-95 shadow-sm shadow-blue-100"
-                : "bg-gray-100 text-gray-300 cursor-not-allowed"
-            )}>
-            <CheckCircle2 className="w-4 h-4" />
-            <span>저장하기</span>
-          </button>
+        <div className="p-6 md:p-7 pt-0">
+          {saveError && (
+            <div className="mb-3 px-4 py-3 bg-rose-50 border border-rose-100 rounded-xl text-[13px] text-rose-600 font-bold leading-relaxed">
+              {saveError}
+            </div>
+          )}
+          <div className="flex gap-3">
+            <button onClick={onClose} disabled={busy}
+              className="flex-1 px-5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl text-sm font-black transition-all active:scale-95 disabled:opacity-50">
+              취소
+            </button>
+            <button onClick={handleSave} disabled={!isValid || busy}
+              className={cn(
+                "flex-[2] px-5 py-3 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-1.5",
+                isValid && !busy
+                  ? "bg-blue-600 hover:bg-blue-700 text-white active:scale-95 shadow-sm shadow-blue-100"
+                  : "bg-gray-100 text-gray-300 cursor-not-allowed"
+              )}>
+              <CheckCircle2 className="w-4 h-4" />
+              <span>{busy ? '저장 중...' : '저장하기'}</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -972,12 +1001,22 @@ function SlotEditModal({ slot, onClose, onSave }) {
 /* ─────────────────────────────────────────────
    관리자 패널
 ───────────────────────────────────────────── */
-function AdminPanel({ slots, workshops, onAddSlot, onDeleteSlot, onEditSlot, onCancelBooking, onReset, onLogout }) {
-  const [newSlot, setNewSlot] = useState({ courseName: COURSE_NAMES[0], date: '', time: '10:00 ~ 16:00' });
+function AdminPanel({ slots, workshops, onAddSlot, onDeleteSlot, onEditSlot, onCancelBooking, onReset, onRefresh, onLogout }) {
+  const [newSlot, setNewSlot] = useState({ courseName: COURSE_NAMES[0], date: '', time: '10:00 ~ 16:00', region: '수도권' });
   const [manageCourse, setManageCourse] = useState(COURSE_NAMES[0]);
   const [editingSlot, setEditingSlot] = useState(null);
   const [confirmState, setConfirmState] = useState(null); // { title, message, confirmLabel, action }
   const [addError, setAddError] = useState('');
+  const [addBusy, setAddBusy] = useState(false);
+  const [actionError, setActionError] = useState('');
+
+  const runAction = async (fn) => {
+    setActionError('');
+    const res = await fn();
+    if (!(res && res.ok)) {
+      setActionError((res && res.error) || '요청 처리에 실패했습니다. 잠시 후 다시 시도해주세요.');
+    }
+  };
 
   /* 신청 내역 목록 (날짜순) */
   const bookingRows = workshops
@@ -992,16 +1031,16 @@ function AdminPanel({ slots, workshops, onAddSlot, onDeleteSlot, onEditSlot, onC
 
   /* 엑셀(xlsx) 다운로드 */
   const exportExcel = () => {
-    const header = ['과목', '날짜', '요일', '시간', '회사명', '부서/팀명', '신청자', '연락처', '참석인원', '요청사항'];
+    const header = ['과목', '지역', '날짜', '요일', '시간', '회사명', '부서/팀명', '신청자', '연락처', '참석인원', '요청사항'];
     const rows = bookingRows.map(({ workshop: w, slot: s }) => [
-      s.courseName, s.date, koreanDayName(s.date), s.time,
+      s.courseName, s.region || '수도권', s.date, koreanDayName(s.date), s.time,
       w.companyName, w.departmentName, w.applicantName, w.phone,
       w.headcount || '', w.note || '',
     ]);
 
     const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
     ws['!cols'] = [
-      { wch: 14 }, { wch: 12 }, { wch: 6 }, { wch: 16 },
+      { wch: 14 }, { wch: 8 }, { wch: 12 }, { wch: 6 }, { wch: 16 },
       { wch: 18 }, { wch: 18 }, { wch: 10 }, { wch: 15 },
       { wch: 9 }, { wch: 36 },
     ];
@@ -1010,12 +1049,19 @@ function AdminPanel({ slots, workshops, onAddSlot, onDeleteSlot, onEditSlot, onC
     XLSX.writeFile(wb, `TeamUp_신청현황_${toISO(new Date())}.xlsx`);
   };
 
-  const handleAddSlot = () => {
+  const handleAddSlot = async () => {
+    if (addBusy) return;
     if (!newSlot.date) { setAddError('날짜를 선택해주세요.'); return; }
     if (!newSlot.time.trim()) { setAddError('시간을 입력해주세요.'); return; }
     setAddError('');
-    onAddSlot(newSlot);
-    setNewSlot({ ...newSlot, date: '' });
+    setAddBusy(true);
+    const res = await onAddSlot(newSlot);
+    setAddBusy(false);
+    if (res && res.ok) {
+      setNewSlot({ ...newSlot, date: '' });
+    } else {
+      setAddError((res && res.error) || '일정 추가에 실패했습니다. 서버 연결 상태를 확인해주세요.');
+    }
   };
 
   const manageSlots = slots
@@ -1038,6 +1084,11 @@ function AdminPanel({ slots, workshops, onAddSlot, onDeleteSlot, onEditSlot, onC
           </div>
         </div>
         <div className="flex gap-2.5">
+          <button onClick={onRefresh}
+            className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-sm font-black transition-all flex items-center gap-1.5 active:scale-95">
+            <CalendarIcon className="w-4 h-4" />
+            새로고침
+          </button>
           <button onClick={exportExcel}
             className="px-4 py-2.5 bg-white text-gray-900 hover:bg-gray-100 rounded-xl text-sm font-black transition-all flex items-center gap-1.5 active:scale-95">
             <DownloadIcon className="w-4 h-4" />
@@ -1050,6 +1101,12 @@ function AdminPanel({ slots, workshops, onAddSlot, onDeleteSlot, onEditSlot, onC
           </button>
         </div>
       </div>
+
+      {actionError && (
+        <div className="px-5 py-4 bg-rose-50 border border-rose-100 rounded-2xl text-[13px] text-rose-600 font-bold leading-relaxed">
+          {actionError}
+        </div>
+      )}
 
       {/* 신청 현황 테이블 */}
       <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-6 md:p-8">
@@ -1091,7 +1148,10 @@ function AdminPanel({ slots, workshops, onAddSlot, onDeleteSlot, onEditSlot, onC
                       </td>
                       <td className="py-3.5 pr-3 font-extrabold text-gray-900 whitespace-nowrap">
                         {formatFullDate(s.date)} ({koreanDayName(s.date)})
-                        <div className="text-[11px] text-gray-400 font-bold">{s.time}</div>
+                        <div className="text-[11px] text-gray-400 font-bold flex items-center gap-1.5 mt-0.5">
+                          <span>{s.time}</span>
+                          <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-black", regionBadgeClass(s.region))}>{s.region || '수도권'}</span>
+                        </div>
                       </td>
                       <td className="py-3.5 pr-3 font-bold text-gray-700 whitespace-nowrap">{w.companyName}<br /><span className="text-gray-400 text-[12px]">{w.departmentName}</span></td>
                       <td className="py-3.5 pr-3 font-bold text-gray-700 whitespace-nowrap">{w.applicantName}</td>
@@ -1104,7 +1164,7 @@ function AdminPanel({ slots, workshops, onAddSlot, onDeleteSlot, onEditSlot, onC
                             title: '신청 취소',
                             message: `${w.companyName} ${w.departmentName}의\n${s.courseName} 워크숍 신청을 취소하시겠습니까?`,
                             confirmLabel: '신청 취소',
-                            action: () => onCancelBooking(w),
+                            action: () => runAction(() => onCancelBooking(w)),
                           })}
                           className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-[12px] font-black transition-all active:scale-95">
                           신청 취소
@@ -1137,14 +1197,18 @@ function AdminPanel({ slots, workshops, onAddSlot, onDeleteSlot, onEditSlot, onC
               className="px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30">
               {COURSE_NAMES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
+            <select value={newSlot.region} onChange={(e) => setNewSlot({ ...newSlot, region: e.target.value })}
+              className="px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30">
+              {REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+            </select>
             <input type="date" value={newSlot.date} onChange={(e) => setNewSlot({ ...newSlot, date: e.target.value })}
               className="px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30" />
             <input type="text" value={newSlot.time} onChange={(e) => setNewSlot({ ...newSlot, time: e.target.value })} placeholder="예: 10:00 ~ 16:00"
               className="px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-bold text-gray-900 w-44 placeholder:text-gray-300 placeholder:font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30" />
-            <button onClick={handleAddSlot}
-              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-black transition-all flex items-center gap-1.5 active:scale-95">
+            <button onClick={handleAddSlot} disabled={addBusy}
+              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-black transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-60">
               <PlusIcon className="w-4 h-4" />
-              추가
+              {addBusy ? '추가 중...' : '추가'}
             </button>
           </div>
           {addError && (
@@ -1174,7 +1238,7 @@ function AdminPanel({ slots, workshops, onAddSlot, onDeleteSlot, onEditSlot, onC
                 <div className={cn("w-1.5 h-8 rounded-full", s.isBooked ? "bg-amber-400" : "bg-blue-500")} />
                 <div>
                   <span className="text-sm font-extrabold text-gray-900">{formatFullDate(s.date)} ({koreanDayName(s.date)})</span>
-                  <div className="text-[12px] text-gray-400 font-bold">{s.time} · {s.isBooked ? '신청 완료' : '신청 가능'}</div>
+                  <div className="text-[12px] text-gray-400 font-bold">{s.time} · {s.region || '수도권'} · {s.isBooked ? '신청 완료' : '신청 가능'}</div>
                 </div>
               </div>
               <div className="flex items-center gap-1">
@@ -1191,7 +1255,7 @@ function AdminPanel({ slots, workshops, onAddSlot, onDeleteSlot, onEditSlot, onC
                       ? '이 일정에는 신청 내역이 있습니다.\n일정과 신청 내역을 함께 삭제하시겠습니까?'
                       : `${formatFullDate(s.date)} (${koreanDayName(s.date)}) 일정을 삭제하시겠습니까?`,
                     confirmLabel: '삭제',
-                    action: () => onDeleteSlot(s),
+                    action: () => runAction(() => onDeleteSlot(s)),
                   })}
                   className="p-2 rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition-all"
                   aria-label="일정 삭제">
@@ -1217,7 +1281,7 @@ function AdminPanel({ slots, workshops, onAddSlot, onDeleteSlot, onEditSlot, onC
               title: '데이터 초기화',
               message: '모든 신청 내역과 변경된 일정이 삭제되고\n기본 일정으로 되돌아갑니다.\n이 작업은 되돌릴 수 없습니다.',
               confirmLabel: '초기화',
-              action: onReset,
+              action: () => runAction(onReset),
             })}
             className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-[13px] font-black transition-all active:scale-95 flex items-center gap-1.5">
             <TrashIcon className="w-4 h-4" />
@@ -1253,23 +1317,52 @@ function AdminPanel({ slots, workshops, onAddSlot, onDeleteSlot, onEditSlot, onC
    메인 App
 ───────────────────────────────────────────── */
 function App() {
-  const [state, setState] = useState(loadState);
+  const [slots, setSlots] = useState([]);
+  const [workshops, setWorkshops] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [selectedWorkshop, setSelectedWorkshop] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminPassword, setAdminPassword] = useState('');
   const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const isAdmin = !!adminPassword;
 
-  const { slots, workshops } = state;
+  const applyData = (data) => {
+    setSlots(normalizeSlots(data.slots));
+    setWorkshops(data.workshops || []);
+  };
 
-  useEffect(() => { saveState(state); }, [state]);
+  const refresh = async () => {
+    if (!API_CONFIGURED) {
+      setLoading(false);
+      setLoadError('CONFIG');
+      return;
+    }
+    try {
+      setLoading(true);
+      setLoadError('');
+      const data = await apiGet();
+      applyData(data);
+    } catch (e) {
+      setLoadError('일정 정보를 불러오지 못했습니다. 네트워크 상태를 확인한 뒤 다시 시도해주세요.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { refresh(); }, []);
 
   const courseStats = useMemo(() => {
     const stats = {};
-    COURSE_NAMES.forEach((c) => { stats[c] = { booked: 0, available: 0 }; });
+    COURSE_NAMES.forEach((c) => { stats[c] = { booked: 0, available: 0, availableCapital: 0, availableLocal: 0 }; });
     slots.forEach((s) => {
-      if (!stats[s.courseName]) stats[s.courseName] = { booked: 0, available: 0 };
+      if (!stats[s.courseName]) stats[s.courseName] = { booked: 0, available: 0, availableCapital: 0, availableLocal: 0 };
       if (s.isBooked) stats[s.courseName].booked += 1;
-      else stats[s.courseName].available += 1;
+      else {
+        stats[s.courseName].available += 1;
+        if ((s.region || '수도권') === '지방') stats[s.courseName].availableLocal += 1;
+        else stats[s.courseName].availableCapital += 1;
+      }
     });
     return stats;
   }, [slots]);
@@ -1279,97 +1372,70 @@ function App() {
     return { total: slots.length, booked, available: slots.length - booked };
   }, [slots]);
 
-  /* ── 신청 ── */
+  /* ── 신청 (서버 전송, 선착순 충돌 시 서버가 거부) ── */
   const handleBookingSubmit = async (slot, form) => {
-    const target = state.slots.find((s) => s.id === slot.id);
-    if (!target || target.isBooked) {
-      return { ok: false, error: '이미 신청이 완료된 일정입니다. 다른 일정을 선택해주세요.' };
+    try {
+      const res = await apiPost({ action: 'book', slotId: slot.id, ...form });
+      if (res.ok) applyData(res);
+      return res;
+    } catch (e) {
+      return { ok: false, error: '요청 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.' };
     }
-    const wsId = `ws-${Date.now()}`;
-    const newWorkshop = { id: wsId, slotId: slot.id, ...form };
-    setState((prev) => ({
-      workshops: [...prev.workshops, newWorkshop],
-      slots: prev.slots.map((s) =>
-        s.id === slot.id ? { ...s, isBooked: true, bookedWorkshopId: wsId } : s
-      ),
-    }));
-    return { ok: true };
   };
 
-  /* ── 신청 취소 (신청 비밀번호 확인) ── */
-  const removeBooking = (workshop) => {
-    setState((prev) => ({
-      workshops: prev.workshops.filter((w) => w.id !== workshop.id),
-      slots: prev.slots.map((s) =>
-        s.bookedWorkshopId === workshop.id || s.id === workshop.slotId
-          ? { ...s, isBooked: false, bookedWorkshopId: null }
-          : s
-      ),
-    }));
-    setSelectedWorkshop(null);
-  };
-
+  /* ── 신청 취소 (서버에서 비밀번호 검증) ── */
   const handleCancelBooking = async (workshop, password) => {
-    if (workshop.password && String(workshop.password) !== String(password)) {
-      return { ok: false, error: '비밀번호가 올바르지 않습니다. 분실 시 운영 담당자에게 문의해주세요.' };
+    try {
+      const res = await apiPost({ action: 'cancel', workshopId: workshop.id, password });
+      if (res.ok) {
+        applyData(res);
+        setSelectedWorkshop(null);
+      }
+      return res;
+    } catch (e) {
+      return { ok: false, error: '요청 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.' };
     }
-    removeBooking(workshop);
-    return { ok: true };
   };
 
-  /* ── 관리자 로그인 ── */
+  /* ── 관리자 로그인 (서버 검증) ── */
   const handleAdminLogin = async (password) => {
-    if (password === ADMIN_PASSWORD) {
-      setIsAdmin(true);
-      setShowAdminLogin(false);
-      return { ok: true };
+    try {
+      const res = await apiPost({ action: 'adminCheck', adminPassword: password });
+      if (res.ok) {
+        setAdminPassword(password);
+        setShowAdminLogin(false);
+        refresh();
+      }
+      return res.ok ? res : { ok: false, error: '비밀번호가 올바르지 않습니다.' };
+    } catch (e) {
+      return { ok: false, error: '서버에 연결할 수 없습니다.' };
     }
-    return { ok: false, error: '비밀번호가 올바르지 않습니다.' };
   };
 
-  /* ── 관리자 전용 핸들러 ── */
-  const handleAdminCancel = async (workshop) => {
-    removeBooking(workshop);
-    return { ok: true };
+  /* ── 관리자 액션 공통 처리 ── */
+  const adminAction = async (payload) => {
+    try {
+      const res = await apiPost({ ...payload, adminPassword });
+      if (res.ok) applyData(res);
+      return res;
+    } catch (e) {
+      return { ok: false, error: '요청 처리 중 오류가 발생했습니다.' };
+    }
   };
 
-  const handleAddSlot = async ({ courseName, date, time }) => {
-    const newSlotObj = {
-      id: `slot-custom-${Date.now()}`,
-      courseName,
-      date,
-      time: time.trim(),
-      isBooked: false,
-      bookedWorkshopId: null,
-    };
-    setState((prev) => ({ ...prev, slots: [...prev.slots, newSlotObj] }));
-    return { ok: true };
-  };
+  const handleAddSlot = ({ courseName, date, time, region }) =>
+    adminAction({ action: 'addSlot', courseName, date, time: time.trim(), region: region || '수도권' });
 
-  const handleDeleteSlot = async (slot) => {
-    setState((prev) => ({
-      workshops: prev.workshops.filter((w) => w.slotId !== slot.id && w.id !== slot.bookedWorkshopId),
-      slots: prev.slots.filter((s) => s.id !== slot.id),
-    }));
-    return { ok: true };
-  };
+  const handleDeleteSlot = (slot) =>
+    adminAction({ action: 'deleteSlot', slotId: slot.id });
 
-  const handleEditSlot = async (slot, changes) => {
-    setState((prev) => ({
-      ...prev,
-      slots: prev.slots.map((s) =>
-        s.id === slot.id
-          ? { ...s, courseName: changes.courseName, date: changes.date, time: changes.time }
-          : s
-      ),
-    }));
-    return { ok: true };
-  };
+  const handleEditSlot = (slot, changes) =>
+    adminAction({ action: 'editSlot', slotId: slot.id, courseName: changes.courseName, date: changes.date, time: changes.time, region: changes.region || '수도권' });
 
-  const handleReset = async () => {
-    setState({ slots: buildInitialSlots(), workshops: [] });
-    return { ok: true };
-  };
+  const handleAdminCancel = (workshop) =>
+    adminAction({ action: 'adminCancel', workshopId: workshop.id });
+
+  const handleReset = () => adminAction({ action: 'reset' });
 
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-12">
@@ -1408,8 +1474,32 @@ function App() {
         </div>
       </header>
 
-      {/* 본문: 관리자 모드 or 일반 모드 */}
-      {isAdmin ? (
+      {/* 본문: 로딩 / 에러 / 관리자 / 일반 */}
+      {loading ? (
+        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-16 text-center mb-10">
+          <div className="w-10 h-10 mx-auto border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin" />
+          <p className="text-sm text-gray-400 font-bold mt-5">일정 정보를 불러오는 중입니다...</p>
+        </div>
+      ) : loadError === 'CONFIG' ? (
+        <div className="bg-white rounded-3xl shadow-xl border border-amber-200 p-10 text-center mb-10">
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center mb-4">
+            <LockIcon className="w-6 h-6" />
+          </div>
+          <h3 className="text-xl font-black text-gray-900">서버 연동 설정이 필요합니다</h3>
+          <p className="text-sm text-gray-500 font-semibold mt-3 leading-relaxed max-w-md mx-auto">
+            Google Apps Script를 배포한 후 발급된 웹 앱 URL을<br />
+            이 파일(index.html) 상단의 <code className="px-1.5 py-0.5 bg-gray-100 rounded text-[12px] font-mono text-gray-700">API_URL</code>에 붙여넣어주세요.
+          </p>
+        </div>
+      ) : loadError ? (
+        <div className="bg-white rounded-3xl shadow-xl border border-rose-100 p-10 text-center mb-10">
+          <h3 className="text-lg font-black text-gray-900">{loadError}</h3>
+          <button onClick={refresh}
+            className="mt-5 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-black transition-all active:scale-95">
+            다시 시도
+          </button>
+        </div>
+      ) : isAdmin ? (
         <AdminPanel
           slots={slots}
           workshops={workshops}
@@ -1418,7 +1508,8 @@ function App() {
           onEditSlot={handleEditSlot}
           onCancelBooking={handleAdminCancel}
           onReset={handleReset}
-          onLogout={() => setIsAdmin(false)}
+          onRefresh={refresh}
+          onLogout={() => setAdminPassword('')}
         />
       ) : (
         <CourseScheduleList
