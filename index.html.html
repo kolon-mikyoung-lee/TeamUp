@@ -1,0 +1,1479 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>2026 Team Up | 워크숍 과목별 일정</title>
+
+<!-- Tailwind CSS (Play CDN) -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Pretendard', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'Roboto', 'sans-serif'],
+        },
+      },
+    },
+  };
+</script>
+
+<!-- Pretendard 폰트 -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+
+<!-- React + Babel (빌드 없이 JSX 실행) -->
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js"></script>
+
+<!-- SheetJS (엑셀 xlsx 다운로드용) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+  html { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
+  body { -webkit-font-smoothing: antialiased; }
+
+  /* framer-motion 대체 애니메이션 */
+  @keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(-15px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .fade-slide-in { animation: fadeSlideIn 0.25s ease-out; }
+
+  @keyframes modalIn {
+    from { opacity: 0; transform: translateY(12px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .modal-in { animation: modalIn 0.22s ease-out; }
+
+  @keyframes backdropIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  .backdrop-in { animation: backdropIn 0.2s ease-out; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .fade-slide-in, .modal-in, .backdrop-in { animation: none; }
+  }
+</style>
+</head>
+<body class="bg-gradient-to-b from-slate-100 via-slate-50 to-blue-50/40 min-h-screen">
+
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useMemo } = React;
+
+/* ─────────────────────────────────────────────
+   유틸
+───────────────────────────────────────────── */
+function cn(...inputs) {
+  return inputs.filter(Boolean).join(' ');
+}
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+
+function formatFullDate(dateStr) {
+  try {
+    const d = new Date(dateStr + 'T00:00:00');
+    return `${d.getFullYear()}년 ${pad2(d.getMonth() + 1)}월 ${pad2(d.getDate())}일`;
+  } catch { return dateStr; }
+}
+
+function monthLabel(dateStr) {
+  try {
+    const d = new Date(dateStr + 'T00:00:00');
+    return `${d.getMonth() + 1}월`;
+  } catch { return '일정'; }
+}
+
+function koreanDayName(dateStr) {
+  try {
+    const dayIndex = new Date(dateStr + 'T00:00:00').getDay();
+    return ['일', '월', '화', '수', '목', '금', '토'][dayIndex];
+  } catch { return ''; }
+}
+
+/* ─────────────────────────────────────────────
+   아이콘 (lucide 경로 인라인)
+───────────────────────────────────────────── */
+function Svg({ children, className }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      className={className}>{children}</svg>
+  );
+}
+const CalendarIcon  = (p) => <Svg {...p}><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></Svg>;
+const TrendingUp    = (p) => <Svg {...p}><polyline points="22 7 13.5 15.5 8.5 10.5 2 17" /><polyline points="16 7 22 7 22 13" /></Svg>;
+const ShieldCheck   = (p) => <Svg {...p}><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1 1 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /><path d="m9 12 2 2 4-4" /></Svg>;
+const ArrowRight    = (p) => <Svg {...p}><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></Svg>;
+const CheckCircle2  = (p) => <Svg {...p}><circle cx="12" cy="12" r="10" /><path d="m9 12 2 2 4-4" /></Svg>;
+const XIcon         = (p) => <Svg {...p}><path d="M18 6 6 18" /><path d="m6 6 12 12" /></Svg>;
+const Sparkles      = (p) => <Svg {...p}><path d="M9.94 15.5a2 2 0 0 0-1.44-1.44L2.37 12.48a.5.5 0 0 1 0-.96L8.5 9.94a2 2 0 0 0 1.44-1.44l1.58-6.13a.5.5 0 0 1 .96 0l1.58 6.13a2 2 0 0 0 1.44 1.44l6.13 1.58a.5.5 0 0 1 0 .96l-6.13 1.58a2 2 0 0 0-1.44 1.44l-1.58 6.13a.5.5 0 0 1-.96 0z" /><path d="M20 3v4M22 5h-4" /></Svg>;
+const HeartIcon     = (p) => <Svg {...p}><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" /></Svg>;
+const TargetIcon    = (p) => <Svg {...p}><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></Svg>;
+const Briefcase     = (p) => <Svg {...p}><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" /></Svg>;
+const UsersIcon     = (p) => <Svg {...p}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></Svg>;
+const FlameIcon     = (p) => <Svg {...p}><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z" /></Svg>;
+const ClockIcon     = (p) => <Svg {...p}><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></Svg>;
+const Building2     = (p) => <Svg {...p}><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z" /><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" /><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2" /><path d="M10 6h4M10 10h4M10 14h4M10 18h4" /></Svg>;
+const LockIcon      = (p) => <Svg {...p}><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></Svg>;
+const DownloadIcon  = (p) => <Svg {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><path d="M12 15V3" /></Svg>;
+const TrashIcon     = (p) => <Svg {...p}><path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M10 11v6M14 11v6" /></Svg>;
+const PlusIcon      = (p) => <Svg {...p}><path d="M5 12h14M12 5v14" /></Svg>;
+const LogOutIcon    = (p) => <Svg {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><path d="M21 12H9" /></Svg>;
+const PencilIcon    = (p) => <Svg {...p}><path d="M21.17 6.83a2.85 2.85 0 0 0-4-4L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z" /><path d="m15 5 4 4" /></Svg>;
+
+/* ─────────────────────────────────────────────
+   관리자 설정
+   ※ 비밀번호를 변경하려면 아래 값을 수정하세요.
+   ※ 주의: 공개 HTML 특성상 소스 보기로 노출될 수 있는
+      간이 잠금장치입니다. (무단 조작 방지용)
+───────────────────────────────────────────── */
+const ADMIN_PASSWORD = 'kolon2026';
+
+/* ─────────────────────────────────────────────
+   과목 메타데이터
+───────────────────────────────────────────── */
+const COURSE_METADATA = {
+  'MBTI': {
+    icon: Sparkles,
+    bgColor: 'bg-violet-100', textColor: 'text-violet-600',
+    description: '성격유형 진단을 통해 서로의 다름을 이해하고 팀 시너지를 높이는 팀 빌딩 과정입니다.',
+  },
+  'Trust Building': {
+    icon: HeartIcon,
+    bgColor: 'bg-rose-100', textColor: 'text-rose-600',
+    description: '심리적 안전감과 상호 신뢰를 구축하여 협업의 기반을 다지는 과정입니다.',
+  },
+  '미션비전': {
+    icon: TargetIcon,
+    bgColor: 'bg-blue-100', textColor: 'text-blue-600',
+    description: '팀의 존재 이유와 지향점을 함께 정의하고, 팀 미션·비전을 수립하는 과정입니다.',
+  },
+  '일하는 방식': {
+    icon: Briefcase,
+    bgColor: 'bg-emerald-100', textColor: 'text-emerald-600',
+    description: '팀의 협업 규칙과 일하는 방식을 진단하고 그라운드 룰을 정립하는 과정입니다.',
+  },
+  'R&R': {
+    icon: UsersIcon,
+    bgColor: 'bg-amber-100', textColor: 'text-amber-600',
+    description: '팀 내 역할과 책임을 명확히 정의하여 업무 중복과 사각지대를 해소하는 과정입니다.',
+  },
+  'Team Melting': {
+    icon: FlameIcon,
+    bgColor: 'bg-orange-100', textColor: 'text-orange-600',
+    description: '조직 개편·신규 팀을 위한 관계 형성 및 팀 결속력 강화 과정입니다.',
+  },
+};
+const COURSE_NAMES = Object.keys(COURSE_METADATA);
+
+/* ─────────────────────────────────────────────
+   초기 일정 데이터 (2026년 7월 ~ 12월, 과목당 10회 / 총 60회)
+───────────────────────────────────────────── */
+function toISO(d) {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+function shiftOffWeekend(d) {
+  if (d.getDay() === 0) d.setDate(d.getDate() + 1); // 일 → 월
+  if (d.getDay() === 6) d.setDate(d.getDate() + 2); // 토 → 월
+  return d;
+}
+
+function buildInitialSlots() {
+  const slots = [];
+  const perMonthCounts = [2, 2, 2, 2, 1, 1]; // 7월~12월 (과목당 총 10회)
+  COURSE_NAMES.forEach((courseName, ci) => {
+    [7, 8, 9, 10, 11, 12].forEach((month, mi) => {
+      for (let k = 0; k < perMonthCounts[mi]; k++) {
+        const baseDay = 3 + ci * 2 + k * 13;
+        const d = shiftOffWeekend(new Date(2026, month - 1, baseDay));
+        slots.push({
+          id: `slot-${ci}-${month}-${k}`,
+          courseName,
+          date: toISO(d),
+          time: '10:00 ~ 16:00',
+          isBooked: false,
+          bookedWorkshopId: null,
+        });
+      }
+    });
+  });
+  return slots;
+}
+
+/* ─────────────────────────────────────────────
+   저장소 (localStorage — 사용 불가 환경에서는 메모리로 동작)
+───────────────────────────────────────────── */
+const STORAGE_KEY = 'teamup-scheduler-2026-v1';
+
+function loadState() {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.slots) && Array.isArray(parsed.workshops)) {
+        return parsed;
+      }
+    }
+  } catch (e) { /* localStorage 미지원 환경 → 기본값 사용 */ }
+  return { slots: buildInitialSlots(), workshops: [] };
+}
+
+function saveState(state) {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (e) { /* 저장 불가 환경에서는 세션 내 메모리로만 유지 */ }
+}
+
+/* ─────────────────────────────────────────────
+   과목별 일정 리스트 (원본 CourseScheduleList — 디자인 동일 유지)
+───────────────────────────────────────────── */
+function CourseScheduleList({ slots, workshops, courseStats, onSelectSlot, onSelectWorkshop }) {
+  const [expandedCourse, setExpandedCourse] = useState(null);
+
+  const getGroupedSlotsByMonth = (courseName) => {
+    const courseSlots = slots
+      .filter((s) => s.courseName === courseName)
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    const grouped = {};
+    courseSlots.forEach((slot) => {
+      const m = monthLabel(slot.date);
+      if (!grouped[m]) grouped[m] = [];
+      grouped[m].push(slot);
+    });
+    return grouped;
+  };
+
+  const handleCompletedClick = (slot) => {
+    const targetWs = slot.bookedWorkshopId
+      ? workshops.find((w) => w.id === slot.bookedWorkshopId)
+      : workshops.find((w) => w.slotId === slot.id);
+    if (targetWs) onSelectWorkshop(targetWs);
+  };
+
+  return (
+    <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-6 md:p-8 mb-10">
+      {/* Title Header */}
+      <div className="mb-8 text-center md:text-left">
+        <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-bold uppercase tracking-wider">
+          Workshop Scheduler
+        </span>
+        <h2 className="text-3xl md:text-4xl font-extrabold leading-tight text-gray-900 mt-3">
+          팀의 성장을 위한 <span className="text-blue-600">최고의 워크숍 과목별 일정</span>
+        </h2>
+        <p className="text-gray-500 mt-2 text-sm leading-relaxed max-w-2xl">
+          비전 수립부터 MBTI 팀 빌딩까지, 우리 팀에 꼭 필요한 과정의 월별 신청 일자를 확인하고 손쉽게 예약 신청해보세요.
+        </p>
+      </div>
+
+      {/* Courses Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+        {COURSE_NAMES.map((courseName) => {
+          const meta = COURSE_METADATA[courseName];
+          const Icon = meta.icon;
+          const isSelected = expandedCourse === courseName;
+          const availableCount = (courseStats[courseName] && courseStats[courseName].available) || 0;
+          const bookedCount = (courseStats[courseName] && courseStats[courseName].booked) || 0;
+
+          return (
+            <button
+              key={courseName}
+              id={`course-card-${courseName}`}
+              onClick={() => setExpandedCourse(isSelected ? null : courseName)}
+              className={cn(
+                "p-5 rounded-2xl border text-left transition-all duration-300 relative overflow-hidden flex flex-col justify-between h-full group",
+                isSelected
+                  ? "bg-blue-50/70 border-blue-200 shadow-md ring-2 ring-blue-500/20"
+                  : "bg-gray-50/50 border-gray-100 hover:border-blue-100 hover:bg-white hover:shadow-md cursor-pointer"
+              )}
+            >
+              {/* Top Row Icon & Stat Summary */}
+              <div className="flex items-start justify-between w-full mb-4">
+                <div className={cn(
+                  "w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110",
+                  meta.bgColor, meta.textColor
+                )}>
+                  <Icon className="w-5 h-5" />
+                </div>
+                <div className="flex flex-col items-end gap-1 text-[10px] font-bold">
+                  {availableCount > 0 && (
+                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full flex items-center gap-0.5">
+                      <TrendingUp className="w-2.5 h-2.5" />
+                      신청가능 {availableCount}
+                    </span>
+                  )}
+                  {bookedCount > 0 && (
+                    <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full flex items-center gap-0.5">
+                      <ShieldCheck className="w-2.5 h-2.5" />
+                      신청완료 {bookedCount}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Course Info */}
+              <div className="mt-2">
+                <h3 className="font-extrabold text-gray-950 text-[18px] leading-snug group-hover:text-blue-600 transition-colors">
+                  {courseName}
+                </h3>
+              </div>
+
+              {/* Accent active bar */}
+              {isSelected && <div className="absolute left-0 bottom-0 top-0 w-1 bg-blue-600" />}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Expanded Course Monthly Schedules */}
+      {expandedCourse && (
+        <div key={expandedCourse} className="fade-slide-in mt-6 p-6 md:p-8 bg-slate-50/90 rounded-2xl border border-slate-100">
+          {/* Header description within schedule drawer */}
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 pb-4 mb-6">
+            <div>
+              <h4 className="text-2xl font-black text-gray-900 flex items-center gap-2">
+                <span className={cn("inline-block w-3.5 h-3.5 rounded-full", COURSE_METADATA[expandedCourse].bgColor)} />
+                {expandedCourse} 일정 현황
+              </h4>
+              <p className="text-sm text-gray-500 mt-1.5 font-semibold">
+                {COURSE_METADATA[expandedCourse].description}
+              </p>
+            </div>
+
+            <div className="flex gap-4 text-sm font-bold text-gray-500">
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded bg-blue-600" />
+                <span>신청 가능 ({(courseStats[expandedCourse] && courseStats[expandedCourse].available) || 0}건)</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded bg-amber-500" />
+                <span>신청 완료 ({(courseStats[expandedCourse] && courseStats[expandedCourse].booked) || 0}건)</span>
+              </div>
+            </div>
+          </div>
+
+          {/* List Grouped by Month */}
+          {(() => {
+            const grouped = getGroupedSlotsByMonth(expandedCourse);
+            const months = Object.keys(grouped).sort((a, b) => {
+              const numA = parseInt(a.replace(/[^0-9]/g, '')) || 0;
+              const numB = parseInt(b.replace(/[^0-9]/g, '')) || 0;
+              return numA - numB;
+            });
+
+            if (months.length === 0) {
+              return (
+                <div className="text-center py-10 bg-white rounded-xl border border-gray-100 text-sm text-gray-400 italic">
+                  등록된 일정이 없습니다. 관리자에게 문의해주시거나 다른 과정을 탐색해보세요.
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-8">
+                {months.map((month) => (
+                  <div key={month} className="space-y-3">
+                    {/* Month Label */}
+                    <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-white border border-gray-200 rounded-full text-sm font-black text-gray-800 shadow-sm">
+                      <CalendarIcon className="w-4 h-4 text-blue-500" />
+                      {month} 일정
+                    </span>
+
+                    {/* Slots block */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {grouped[month].map((slot) => {
+                        const isBooked = slot.isBooked;
+                        const formattedDate = formatFullDate(slot.date);
+
+                        return (
+                          <div
+                            key={slot.id}
+                            className={cn(
+                              "p-4 rounded-xl border transition-all flex items-center justify-between gap-4 bg-white",
+                              isBooked
+                                ? "border-amber-100 hover:border-amber-200/80 shadow-sm"
+                                : "border-gray-100 hover:border-blue-200/80 hover:shadow-md"
+                            )}
+                          >
+                            <div className="flex items-center gap-3">
+                              {/* Left indicator */}
+                              <div className={cn("w-2 h-10 rounded-full", isBooked ? "bg-amber-400" : "bg-blue-500")} />
+                              <div>
+                                <div className="text-[16px] font-extrabold text-gray-900 flex items-center gap-1.5">
+                                  <span>{formattedDate}</span>
+                                  <span className="text-blue-600 font-black">({koreanDayName(slot.date)})</span>
+                                </div>
+                                <div className="text-[13px] text-gray-500 font-bold mt-1.5 flex flex-wrap items-center gap-1.5">
+                                  <span>시간: {slot.time}</span>
+                                  {isBooked && (() => {
+                                    const ws = slot.bookedWorkshopId
+                                      ? workshops.find((w) => w.id === slot.bookedWorkshopId)
+                                      : workshops.find((w) => w.slotId === slot.id);
+                                    if (ws) {
+                                      return (
+                                        <React.Fragment>
+                                          <span className="w-px h-3 bg-gray-200 self-center mx-0.5" />
+                                          <span className="text-amber-800 font-extrabold bg-amber-50 border border-amber-100/55 px-2.5 py-1 rounded-md text-[12px]">
+                                            {ws.companyName} | {ws.departmentName}
+                                          </span>
+                                        </React.Fragment>
+                                      );
+                                    }
+                                    return null;
+                                  })()}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div>
+                              {isBooked ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCompletedClick(slot)}
+                                  className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-black border border-amber-600/10 transition-all flex items-center gap-1.5 active:scale-95 shadow-sm shadow-amber-100"
+                                >
+                                  <CheckCircle2 className="w-4 h-4" />
+                                  <span>완료</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => onSelectSlot(slot)}
+                                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-black border border-blue-700/10 transition-all flex items-center gap-1.5 active:scale-95 shadow-sm shadow-blue-100"
+                                >
+                                  <span>신청하기</span>
+                                  <ArrowRight className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   신청 모달
+───────────────────────────────────────────── */
+function BookingModal({ slot, onClose, onSubmit }) {
+  const [form, setForm] = useState({
+    companyName: '', departmentName: '', applicantName: '', phone: '', headcount: '', note: '', password: '',
+  });
+  const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const meta = COURSE_METADATA[slot.courseName];
+  const Icon = meta.icon;
+
+  const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
+  const isValid = form.companyName.trim() && form.departmentName.trim()
+    && form.applicantName.trim() && form.phone.trim()
+    && form.password.trim().length >= 4;
+
+  const handleSubmit = async () => {
+    if (!isValid || submitting) return;
+    setSubmitting(true);
+    setSubmitError('');
+    const res = await onSubmit(slot, {
+      ...form,
+      headcount: parseInt(form.headcount, 10) || null,
+    });
+    setSubmitting(false);
+    if (res && res.ok) {
+      setSubmitted(true);
+    } else {
+      setSubmitError((res && res.error) || '신청 처리에 실패했습니다. 잠시 후 다시 시도해주세요.');
+    }
+  };
+
+  return (
+    <div className="backdrop-in fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm" onClick={onClose}>
+      <div className="modal-in bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        {submitted ? (
+          /* 완료 화면 */
+          <div className="p-10 text-center">
+            <div className="w-16 h-16 mx-auto rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-5">
+              <CheckCircle2 className="w-9 h-9" />
+            </div>
+            <h3 className="text-2xl font-black text-gray-900">신청이 완료되었습니다</h3>
+            <p className="text-sm text-gray-500 font-semibold mt-2 leading-relaxed">
+              {formatFullDate(slot.date)} ({koreanDayName(slot.date)}) <b className="text-gray-800">{slot.courseName}</b> 워크숍 신청이 접수되었습니다.<br />
+              일정 취소·변경 시 신청 비밀번호가 필요하니 잊지 말아주세요.
+            </p>
+            <button onClick={onClose}
+              className="mt-7 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-black transition-all active:scale-95">
+              확인
+            </button>
+          </div>
+        ) : (
+          <React.Fragment>
+            {/* 모달 헤더 */}
+            <div className="p-6 md:p-7 border-b border-gray-100 flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className={cn("w-11 h-11 rounded-xl flex items-center justify-center shrink-0", meta.bgColor, meta.textColor)}>
+                  <Icon className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-gray-900">{slot.courseName} 워크숍 신청</h3>
+                  <div className="text-[13px] text-gray-500 font-bold mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span className="inline-flex items-center gap-1">
+                      <CalendarIcon className="w-3.5 h-3.5 text-blue-500" />
+                      {formatFullDate(slot.date)} ({koreanDayName(slot.date)})
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <ClockIcon className="w-3.5 h-3.5 text-blue-500" />
+                      {slot.time}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <button onClick={onClose} className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors" aria-label="닫기">
+                <XIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* 입력 폼 */}
+            <div className="p-6 md:p-7 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[13px] font-extrabold text-gray-700 mb-1.5">회사명 <span className="text-rose-500">*</span></label>
+                  <input type="text" value={form.companyName} onChange={set('companyName')} placeholder="예: 코오롱인더스트리"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-900 placeholder:text-gray-300 placeholder:font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-300 transition-all" />
+                </div>
+                <div>
+                  <label className="block text-[13px] font-extrabold text-gray-700 mb-1.5">부서/팀명 <span className="text-rose-500">*</span></label>
+                  <input type="text" value={form.departmentName} onChange={set('departmentName')} placeholder="예: 인재개발팀"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-900 placeholder:text-gray-300 placeholder:font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-300 transition-all" />
+                </div>
+                <div>
+                  <label className="block text-[13px] font-extrabold text-gray-700 mb-1.5">신청자 성명 <span className="text-rose-500">*</span></label>
+                  <input type="text" value={form.applicantName} onChange={set('applicantName')} placeholder="예: 홍길동"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-900 placeholder:text-gray-300 placeholder:font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-300 transition-all" />
+                </div>
+                <div>
+                  <label className="block text-[13px] font-extrabold text-gray-700 mb-1.5">연락처 <span className="text-rose-500">*</span></label>
+                  <input type="tel" value={form.phone} onChange={set('phone')} placeholder="010-0000-0000"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-900 placeholder:text-gray-300 placeholder:font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-300 transition-all" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[13px] font-extrabold text-gray-700 mb-1.5">참석 예정 인원</label>
+                <input type="number" min="1" value={form.headcount} onChange={set('headcount')} placeholder="예: 12"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-900 placeholder:text-gray-300 placeholder:font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-300 transition-all" />
+              </div>
+              <div>
+                <label className="block text-[13px] font-extrabold text-gray-700 mb-1.5">요청사항</label>
+                <textarea rows="3" value={form.note} onChange={set('note')} placeholder="워크숍 관련 요청사항이 있다면 작성해주세요."
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-900 placeholder:text-gray-300 placeholder:font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-300 transition-all resize-none" />
+              </div>
+              <div className="pt-1 border-t border-gray-100">
+                <label className="block text-[13px] font-extrabold text-gray-700 mb-1.5 mt-3 flex items-center gap-1.5">
+                  <LockIcon className="w-3.5 h-3.5 text-blue-500" />
+                  신청 비밀번호 <span className="text-rose-500">*</span>
+                </label>
+                <input type="password" value={form.password} onChange={set('password')} placeholder="4자리 이상 입력"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-900 placeholder:text-gray-300 placeholder:font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-300 transition-all" />
+                <p className="text-[12px] text-gray-400 font-bold mt-1.5 leading-relaxed">
+                  추후 일정 취소나 변경 시 필요한 비밀번호입니다. 잊지 않도록 기억해주세요.
+                </p>
+              </div>
+            </div>
+
+            {/* 모달 푸터 */}
+            <div className="p-6 md:p-7 pt-0">
+              {submitError && (
+                <div className="mb-3 px-4 py-3 bg-rose-50 border border-rose-100 rounded-xl text-[13px] text-rose-600 font-bold leading-relaxed">
+                  {submitError}
+                </div>
+              )}
+              <div className="flex gap-3">
+                <button onClick={onClose} disabled={submitting}
+                  className="flex-1 px-5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl text-sm font-black transition-all active:scale-95 disabled:opacity-50">
+                  취소
+                </button>
+                <button onClick={handleSubmit} disabled={!isValid || submitting}
+                  className={cn(
+                    "flex-[2] px-5 py-3 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-1.5",
+                    isValid && !submitting
+                      ? "bg-blue-600 hover:bg-blue-700 text-white active:scale-95 shadow-sm shadow-blue-100"
+                      : "bg-gray-100 text-gray-300 cursor-not-allowed"
+                  )}>
+                  {submitting ? (
+                    <span>신청 처리 중...</span>
+                  ) : (
+                    <React.Fragment>
+                      <span>신청 완료하기</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </React.Fragment>
+                  )}
+                </button>
+              </div>
+            </div>
+          </React.Fragment>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   신청 완료 상세 모달
+───────────────────────────────────────────── */
+function WorkshopDetailModal({ workshop, slots, onClose, onCancelBooking }) {
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [cancelPw, setCancelPw] = useState('');
+  const [cancelErrMsg, setCancelErrMsg] = useState('');
+  const [cancelBusy, setCancelBusy] = useState(false);
+
+  const doCancel = async () => {
+    if (cancelBusy) return;
+    if (!cancelPw.trim()) { setCancelErrMsg('비밀번호를 입력해주세요.'); return; }
+    setCancelBusy(true);
+    setCancelErrMsg('');
+    const res = await onCancelBooking(workshop, cancelPw);
+    setCancelBusy(false);
+    if (!(res && res.ok)) {
+      setCancelErrMsg((res && res.error) || '비밀번호가 올바르지 않습니다.');
+    }
+  };
+
+  const slot = slots.find((s) => s.id === workshop.slotId || s.bookedWorkshopId === workshop.id);
+  const courseName = slot ? slot.courseName : '';
+  const meta = COURSE_METADATA[courseName] || COURSE_METADATA['MBTI'];
+  const Icon = meta.icon;
+
+  const rows = [
+    { label: '회사명', value: workshop.companyName },
+    { label: '부서/팀명', value: workshop.departmentName },
+    { label: '신청자', value: workshop.applicantName },
+    { label: '연락처', value: workshop.phone },
+    { label: '참석 인원', value: workshop.headcount ? `${workshop.headcount}명` : '-' },
+  ];
+
+  return (
+    <div className="backdrop-in fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm" onClick={onClose}>
+      <div className="modal-in bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        {/* 헤더 */}
+        <div className="p-6 md:p-7 border-b border-gray-100 flex items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className={cn("w-11 h-11 rounded-xl flex items-center justify-center shrink-0", meta.bgColor, meta.textColor)}>
+              <Icon className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-100 rounded-full text-[11px] font-black">
+                <ShieldCheck className="w-3 h-3" />
+                신청 완료
+              </span>
+              <h3 className="text-xl font-black text-gray-900 mt-1.5">{courseName} 워크숍</h3>
+              {slot && (
+                <div className="text-[13px] text-gray-500 font-bold mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="inline-flex items-center gap-1">
+                    <CalendarIcon className="w-3.5 h-3.5 text-blue-500" />
+                    {formatFullDate(slot.date)} ({koreanDayName(slot.date)})
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <ClockIcon className="w-3.5 h-3.5 text-blue-500" />
+                    {slot.time}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors" aria-label="닫기">
+            <XIcon className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* 상세 정보 */}
+        <div className="p-6 md:p-7">
+          <div className="bg-slate-50/90 border border-slate-100 rounded-2xl divide-y divide-slate-100 overflow-hidden">
+            {rows.map((row) => (
+              <div key={row.label} className="flex items-center justify-between px-5 py-3.5">
+                <span className="text-[13px] font-extrabold text-gray-400">{row.label}</span>
+                <span className="text-sm font-extrabold text-gray-900">{row.value || '-'}</span>
+              </div>
+            ))}
+            {workshop.note && (
+              <div className="px-5 py-3.5">
+                <span className="text-[13px] font-extrabold text-gray-400 block mb-1.5">요청사항</span>
+                <p className="text-sm font-semibold text-gray-700 leading-relaxed whitespace-pre-wrap">{workshop.note}</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 푸터 */}
+        <div className="p-6 md:p-7 pt-0 flex gap-3">
+          <button
+            onClick={() => setShowCancelConfirm(true)}
+            className="flex-1 px-5 py-3 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-sm font-black transition-all active:scale-95">
+            신청 취소
+          </button>
+          <button onClick={onClose}
+            className="flex-[2] px-5 py-3 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-sm font-black transition-all active:scale-95">
+            닫기
+          </button>
+        </div>
+
+        {showCancelConfirm && (
+          <div className="backdrop-in fixed inset-0 z-[60] flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm"
+            onClick={() => { if (!cancelBusy) { setShowCancelConfirm(false); setCancelPw(''); setCancelErrMsg(''); } }}>
+            <div className="modal-in bg-white rounded-3xl shadow-2xl w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+              <div className="p-7 text-center">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center mb-4">
+                  <LockIcon className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-black text-gray-900">신청 취소</h3>
+                <p className="text-[13px] text-gray-500 font-bold mt-2 leading-relaxed">
+                  신청 시 입력한 비밀번호를 입력하면<br />이 워크숍 신청이 취소됩니다.
+                </p>
+
+                <input
+                  type="password"
+                  value={cancelPw}
+                  autoFocus
+                  onChange={(e) => { setCancelPw(e.target.value); setCancelErrMsg(''); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') doCancel(); }}
+                  placeholder="신청 비밀번호"
+                  className={cn(
+                    "w-full mt-4 px-4 py-3 rounded-xl border text-sm font-semibold text-gray-900 text-center tracking-widest placeholder:tracking-normal placeholder:text-gray-300 placeholder:font-medium focus:outline-none focus:ring-2 transition-all",
+                    cancelErrMsg
+                      ? "border-rose-300 focus:ring-rose-500/30 bg-rose-50/50"
+                      : "border-gray-200 focus:ring-blue-500/30 focus:border-blue-300"
+                  )}
+                />
+                {cancelErrMsg && (
+                  <p className="text-[12px] text-rose-500 font-bold mt-2">{cancelErrMsg}</p>
+                )}
+
+                <div className="flex gap-3 mt-5">
+                  <button
+                    onClick={() => { setShowCancelConfirm(false); setCancelPw(''); setCancelErrMsg(''); }}
+                    disabled={cancelBusy}
+                    className="flex-1 px-5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl text-sm font-black transition-all active:scale-95 disabled:opacity-50">
+                    닫기
+                  </button>
+                  <button
+                    onClick={doCancel}
+                    disabled={cancelBusy}
+                    className="flex-[2] px-5 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-sm font-black transition-all active:scale-95 disabled:opacity-60">
+                    {cancelBusy ? '처리 중...' : '신청 취소'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   공용 확인 모달 (window.confirm 대체)
+───────────────────────────────────────────── */
+function ConfirmModal({ title, message, confirmLabel, onConfirm, onClose }) {
+  return (
+    <div className="backdrop-in fixed inset-0 z-[60] flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm" onClick={onClose}>
+      <div className="modal-in bg-white rounded-3xl shadow-2xl w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+        <div className="p-7 text-center">
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center mb-4">
+            <TrashIcon className="w-6 h-6" />
+          </div>
+          <h3 className="text-lg font-black text-gray-900">{title}</h3>
+          <p className="text-[13px] text-gray-500 font-bold mt-2 leading-relaxed whitespace-pre-line">{message}</p>
+          <div className="flex gap-3 mt-6">
+            <button onClick={onClose}
+              className="flex-1 px-5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl text-sm font-black transition-all active:scale-95">
+              취소
+            </button>
+            <button onClick={() => { onConfirm(); onClose(); }}
+              className="flex-[2] px-5 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-sm font-black transition-all active:scale-95">
+              {confirmLabel || '확인'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   관리자 로그인 모달
+───────────────────────────────────────────── */
+function AdminLoginModal({ onClose, onLogin }) {
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const handleLogin = async () => {
+    if (busy) return;
+    if (!password.trim()) { setError('비밀번호를 입력해주세요.'); return; }
+    setBusy(true);
+    setError('');
+    const res = await onLogin(password);
+    setBusy(false);
+    if (!(res && res.ok)) {
+      setError((res && res.error) || '비밀번호가 올바르지 않습니다.');
+    }
+  };
+
+  return (
+    <div className="backdrop-in fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm" onClick={onClose}>
+      <div className="modal-in bg-white rounded-3xl shadow-2xl w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+        <div className="p-7 text-center">
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-gray-900 text-white flex items-center justify-center mb-4">
+            <LockIcon className="w-6 h-6" />
+          </div>
+          <h3 className="text-xl font-black text-gray-900">관리자 모드</h3>
+          <p className="text-[13px] text-gray-400 font-bold mt-1.5">관리자 비밀번호를 입력해주세요.</p>
+
+          <input
+            type="password"
+            value={password}
+            autoFocus
+            onChange={(e) => { setPassword(e.target.value); setError(''); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleLogin(); }}
+            placeholder="비밀번호"
+            className={cn(
+              "w-full mt-5 px-4 py-3 rounded-xl border text-sm font-semibold text-gray-900 text-center tracking-widest placeholder:tracking-normal placeholder:text-gray-300 placeholder:font-medium focus:outline-none focus:ring-2 transition-all",
+              error
+                ? "border-rose-300 focus:ring-rose-500/30 bg-rose-50/50"
+                : "border-gray-200 focus:ring-blue-500/30 focus:border-blue-300"
+            )}
+          />
+          {error && (
+            <p className="text-[12px] text-rose-500 font-bold mt-2">{error}</p>
+          )}
+
+          <div className="flex gap-3 mt-5">
+            <button onClick={onClose} disabled={busy}
+              className="flex-1 px-5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl text-sm font-black transition-all active:scale-95 disabled:opacity-50">
+              취소
+            </button>
+            <button onClick={handleLogin} disabled={busy}
+              className="flex-[2] px-5 py-3 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-sm font-black transition-all active:scale-95 disabled:opacity-60">
+              {busy ? '확인 중...' : '로그인'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   일정 수정 모달 (관리자)
+───────────────────────────────────────────── */
+function SlotEditModal({ slot, onClose, onSave }) {
+  const [form, setForm] = useState({
+    courseName: slot.courseName,
+    date: slot.date,
+    time: slot.time,
+  });
+  const meta = COURSE_METADATA[form.courseName];
+
+  const isValid = form.date && form.time.trim();
+
+  const handleSave = () => {
+    if (!isValid) return;
+    onSave(slot, { ...form, time: form.time.trim() });
+    onClose();
+  };
+
+  return (
+    <div className="backdrop-in fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm" onClick={onClose}>
+      <div className="modal-in bg-white rounded-3xl shadow-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+        {/* 헤더 */}
+        <div className="p-6 md:p-7 border-b border-gray-100 flex items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className={cn("w-11 h-11 rounded-xl flex items-center justify-center shrink-0", meta.bgColor, meta.textColor)}>
+              <PencilIcon className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-xl font-black text-gray-900">일정 수정</h3>
+              <p className="text-[13px] text-gray-400 font-bold mt-0.5">
+                {formatFullDate(slot.date)} ({koreanDayName(slot.date)}) · {slot.courseName}
+              </p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors" aria-label="닫기">
+            <XIcon className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* 수정 폼 */}
+        <div className="p-6 md:p-7 space-y-4">
+          <div>
+            <label className="block text-[13px] font-extrabold text-gray-700 mb-1.5">과목</label>
+            <select value={form.courseName} onChange={(e) => setForm({ ...form, courseName: e.target.value })}
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-300 transition-all">
+              {COURSE_NAMES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[13px] font-extrabold text-gray-700 mb-1.5">날짜</label>
+              <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })}
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-300 transition-all" />
+            </div>
+            <div>
+              <label className="block text-[13px] font-extrabold text-gray-700 mb-1.5">시간</label>
+              <input type="text" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} placeholder="예: 10:00 ~ 16:00"
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-bold text-gray-900 placeholder:text-gray-300 placeholder:font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-300 transition-all" />
+            </div>
+          </div>
+
+          {slot.isBooked && (
+            <div className="px-4 py-3 bg-amber-50 border border-amber-100 rounded-xl text-[12px] text-amber-700 font-bold leading-relaxed">
+              이 일정에는 신청 내역이 있습니다. 일정을 변경하면 신청 팀에 별도로 변경 안내가 필요합니다.
+            </div>
+          )}
+        </div>
+
+        {/* 푸터 */}
+        <div className="p-6 md:p-7 pt-0 flex gap-3">
+          <button onClick={onClose}
+            className="flex-1 px-5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl text-sm font-black transition-all active:scale-95">
+            취소
+          </button>
+          <button onClick={handleSave} disabled={!isValid}
+            className={cn(
+              "flex-[2] px-5 py-3 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-1.5",
+              isValid
+                ? "bg-blue-600 hover:bg-blue-700 text-white active:scale-95 shadow-sm shadow-blue-100"
+                : "bg-gray-100 text-gray-300 cursor-not-allowed"
+            )}>
+            <CheckCircle2 className="w-4 h-4" />
+            <span>저장하기</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   관리자 패널
+───────────────────────────────────────────── */
+function AdminPanel({ slots, workshops, onAddSlot, onDeleteSlot, onEditSlot, onCancelBooking, onReset, onLogout }) {
+  const [newSlot, setNewSlot] = useState({ courseName: COURSE_NAMES[0], date: '', time: '10:00 ~ 16:00' });
+  const [manageCourse, setManageCourse] = useState(COURSE_NAMES[0]);
+  const [editingSlot, setEditingSlot] = useState(null);
+  const [confirmState, setConfirmState] = useState(null); // { title, message, confirmLabel, action }
+  const [addError, setAddError] = useState('');
+
+  /* 신청 내역 목록 (날짜순) */
+  const bookingRows = workshops
+    .map((w) => {
+      const slot = slots.find((s) => s.bookedWorkshopId === w.id || s.id === w.slotId);
+      return { workshop: w, slot };
+    })
+    .filter((r) => r.slot)
+    .sort((a, b) => a.slot.date.localeCompare(b.slot.date));
+
+  const totalBooked = slots.filter((s) => s.isBooked).length;
+
+  /* 엑셀(xlsx) 다운로드 */
+  const exportExcel = () => {
+    const header = ['과목', '날짜', '요일', '시간', '회사명', '부서/팀명', '신청자', '연락처', '참석인원', '요청사항'];
+    const rows = bookingRows.map(({ workshop: w, slot: s }) => [
+      s.courseName, s.date, koreanDayName(s.date), s.time,
+      w.companyName, w.departmentName, w.applicantName, w.phone,
+      w.headcount || '', w.note || '',
+    ]);
+
+    const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+    ws['!cols'] = [
+      { wch: 14 }, { wch: 12 }, { wch: 6 }, { wch: 16 },
+      { wch: 18 }, { wch: 18 }, { wch: 10 }, { wch: 15 },
+      { wch: 9 }, { wch: 36 },
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '신청현황');
+    XLSX.writeFile(wb, `TeamUp_신청현황_${toISO(new Date())}.xlsx`);
+  };
+
+  const handleAddSlot = () => {
+    if (!newSlot.date) { setAddError('날짜를 선택해주세요.'); return; }
+    if (!newSlot.time.trim()) { setAddError('시간을 입력해주세요.'); return; }
+    setAddError('');
+    onAddSlot(newSlot);
+    setNewSlot({ ...newSlot, date: '' });
+  };
+
+  const manageSlots = slots
+    .filter((s) => s.courseName === manageCourse)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  return (
+    <div className="space-y-8 mb-10">
+      {/* 관리자 배너 */}
+      <div className="bg-gray-900 text-white rounded-3xl shadow-xl p-6 md:p-7 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-2xl bg-white/10 flex items-center justify-center">
+            <LockIcon className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-xl font-black leading-tight">관리자 모드</h2>
+            <p className="text-[13px] text-gray-400 font-bold mt-0.5">
+              전체 일정 {slots.length}회 · 신청 완료 {totalBooked}건 · 신청 가능 {slots.length - totalBooked}회
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2.5">
+          <button onClick={exportExcel}
+            className="px-4 py-2.5 bg-white text-gray-900 hover:bg-gray-100 rounded-xl text-sm font-black transition-all flex items-center gap-1.5 active:scale-95">
+            <DownloadIcon className="w-4 h-4" />
+            엑셀 다운로드
+          </button>
+          <button onClick={onLogout}
+            className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-sm font-black transition-all flex items-center gap-1.5 active:scale-95">
+            <LogOutIcon className="w-4 h-4" />
+            나가기
+          </button>
+        </div>
+      </div>
+
+      {/* 신청 현황 테이블 */}
+      <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-6 md:p-8">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-xl font-black text-gray-900 flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-amber-500" />
+            신청 현황 <span className="text-amber-600">({bookingRows.length}건)</span>
+          </h3>
+        </div>
+
+        {bookingRows.length === 0 ? (
+          <div className="text-center py-10 bg-slate-50/90 rounded-xl border border-slate-100 text-sm text-gray-400 italic">
+            아직 접수된 신청이 없습니다.
+          </div>
+        ) : (
+          <div className="overflow-x-auto -mx-2 px-2">
+            <table className="w-full text-left text-sm min-w-[820px]">
+              <thead>
+                <tr className="border-b border-gray-200 text-[12px] text-gray-400 font-extrabold">
+                  <th className="py-3 pr-3">과목</th>
+                  <th className="py-3 pr-3">일정</th>
+                  <th className="py-3 pr-3">회사 / 팀</th>
+                  <th className="py-3 pr-3">신청자</th>
+                  <th className="py-3 pr-3">연락처</th>
+                  <th className="py-3 pr-3">인원</th>
+                  <th className="py-3 pr-3">요청사항</th>
+                  <th className="py-3 text-right">관리</th>
+                </tr>
+              </thead>
+              <tbody>
+                {bookingRows.map(({ workshop: w, slot: s }) => {
+                  const meta = COURSE_METADATA[s.courseName];
+                  return (
+                    <tr key={w.id} className="border-b border-gray-50 hover:bg-slate-50/60 transition-colors">
+                      <td className="py-3.5 pr-3">
+                        <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[12px] font-black", meta.bgColor, meta.textColor)}>
+                          {s.courseName}
+                        </span>
+                      </td>
+                      <td className="py-3.5 pr-3 font-extrabold text-gray-900 whitespace-nowrap">
+                        {formatFullDate(s.date)} ({koreanDayName(s.date)})
+                        <div className="text-[11px] text-gray-400 font-bold">{s.time}</div>
+                      </td>
+                      <td className="py-3.5 pr-3 font-bold text-gray-700 whitespace-nowrap">{w.companyName}<br /><span className="text-gray-400 text-[12px]">{w.departmentName}</span></td>
+                      <td className="py-3.5 pr-3 font-bold text-gray-700 whitespace-nowrap">{w.applicantName}</td>
+                      <td className="py-3.5 pr-3 font-bold text-gray-500 whitespace-nowrap">{w.phone}</td>
+                      <td className="py-3.5 pr-3 font-bold text-gray-700">{w.headcount ? `${w.headcount}명` : '-'}</td>
+                      <td className="py-3.5 pr-3 font-semibold text-gray-500 text-[13px] max-w-[180px] truncate" title={w.note || ''}>{w.note || '-'}</td>
+                      <td className="py-3.5 text-right">
+                        <button
+                          onClick={() => setConfirmState({
+                            title: '신청 취소',
+                            message: `${w.companyName} ${w.departmentName}의\n${s.courseName} 워크숍 신청을 취소하시겠습니까?`,
+                            confirmLabel: '신청 취소',
+                            action: () => onCancelBooking(w),
+                          })}
+                          className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-[12px] font-black transition-all active:scale-95">
+                          신청 취소
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* 일정 관리 */}
+      <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-6 md:p-8">
+        <h3 className="text-xl font-black text-gray-900 flex items-center gap-2 mb-5">
+          <CalendarIcon className="w-5 h-5 text-blue-500" />
+          일정 관리
+        </h3>
+
+        {/* 일정 추가 */}
+        <div className="bg-slate-50/90 border border-slate-100 rounded-2xl p-5 mb-6">
+          <p className="text-[13px] font-extrabold text-gray-700 mb-3 flex items-center gap-1.5">
+            <PlusIcon className="w-4 h-4 text-blue-500" />
+            새 일정 추가
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <select value={newSlot.courseName} onChange={(e) => setNewSlot({ ...newSlot, courseName: e.target.value })}
+              className="px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30">
+              {COURSE_NAMES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <input type="date" value={newSlot.date} onChange={(e) => setNewSlot({ ...newSlot, date: e.target.value })}
+              className="px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30" />
+            <input type="text" value={newSlot.time} onChange={(e) => setNewSlot({ ...newSlot, time: e.target.value })} placeholder="예: 10:00 ~ 16:00"
+              className="px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-bold text-gray-900 w-44 placeholder:text-gray-300 placeholder:font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30" />
+            <button onClick={handleAddSlot}
+              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-black transition-all flex items-center gap-1.5 active:scale-95">
+              <PlusIcon className="w-4 h-4" />
+              추가
+            </button>
+          </div>
+          {addError && (
+            <p className="text-[12px] text-rose-500 font-bold mt-2.5">{addError}</p>
+          )}
+        </div>
+
+        {/* 과목별 일정 목록 / 삭제 */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          {COURSE_NAMES.map((c) => (
+            <button key={c} onClick={() => setManageCourse(c)}
+              className={cn(
+                "px-4 py-2 rounded-full text-[13px] font-black border transition-all",
+                manageCourse === c
+                  ? "bg-gray-900 text-white border-gray-900"
+                  : "bg-white text-gray-500 border-gray-200 hover:border-gray-300"
+              )}>
+              {c}
+            </button>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+          {manageSlots.map((s) => (
+            <div key={s.id} className="flex items-center justify-between gap-3 px-4 py-3 bg-white border border-gray-100 rounded-xl hover:border-gray-200 transition-all">
+              <div className="flex items-center gap-3">
+                <div className={cn("w-1.5 h-8 rounded-full", s.isBooked ? "bg-amber-400" : "bg-blue-500")} />
+                <div>
+                  <span className="text-sm font-extrabold text-gray-900">{formatFullDate(s.date)} ({koreanDayName(s.date)})</span>
+                  <div className="text-[12px] text-gray-400 font-bold">{s.time} · {s.isBooked ? '신청 완료' : '신청 가능'}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setEditingSlot(s)}
+                  className="p-2 rounded-lg text-gray-300 hover:text-blue-600 hover:bg-blue-50 transition-all"
+                  aria-label="일정 수정">
+                  <PencilIcon className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setConfirmState({
+                    title: '일정 삭제',
+                    message: s.isBooked
+                      ? '이 일정에는 신청 내역이 있습니다.\n일정과 신청 내역을 함께 삭제하시겠습니까?'
+                      : `${formatFullDate(s.date)} (${koreanDayName(s.date)}) 일정을 삭제하시겠습니까?`,
+                    confirmLabel: '삭제',
+                    action: () => onDeleteSlot(s),
+                  })}
+                  className="p-2 rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition-all"
+                  aria-label="일정 삭제">
+                  <TrashIcon className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+          {manageSlots.length === 0 && (
+            <div className="md:col-span-2 text-center py-8 bg-slate-50/90 rounded-xl border border-slate-100 text-sm text-gray-400 italic">
+              등록된 일정이 없습니다. 위에서 새 일정을 추가해보세요.
+            </div>
+          )}
+        </div>
+
+        {/* 데이터 초기화 */}
+        <div className="mt-6 pt-5 border-t border-gray-100 flex items-center justify-between gap-4 flex-wrap">
+          <p className="text-[12px] text-gray-400 font-semibold leading-relaxed">
+            데이터 초기화 시 모든 신청 내역과 변경된 일정이 삭제되고 기본 일정으로 되돌아갑니다.
+          </p>
+          <button
+            onClick={() => setConfirmState({
+              title: '데이터 초기화',
+              message: '모든 신청 내역과 변경된 일정이 삭제되고\n기본 일정으로 되돌아갑니다.\n이 작업은 되돌릴 수 없습니다.',
+              confirmLabel: '초기화',
+              action: onReset,
+            })}
+            className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-[13px] font-black transition-all active:scale-95 flex items-center gap-1.5">
+            <TrashIcon className="w-4 h-4" />
+            데이터 초기화
+          </button>
+        </div>
+      </div>
+
+      {/* 일정 수정 모달 */}
+      {editingSlot && (
+        <SlotEditModal
+          slot={editingSlot}
+          onClose={() => setEditingSlot(null)}
+          onSave={onEditSlot}
+        />
+      )}
+
+      {/* 확인 모달 */}
+      {confirmState && (
+        <ConfirmModal
+          title={confirmState.title}
+          message={confirmState.message}
+          confirmLabel={confirmState.confirmLabel}
+          onConfirm={confirmState.action}
+          onClose={() => setConfirmState(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   메인 App
+───────────────────────────────────────────── */
+function App() {
+  const [state, setState] = useState(loadState);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [selectedWorkshop, setSelectedWorkshop] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
+
+  const { slots, workshops } = state;
+
+  useEffect(() => { saveState(state); }, [state]);
+
+  const courseStats = useMemo(() => {
+    const stats = {};
+    COURSE_NAMES.forEach((c) => { stats[c] = { booked: 0, available: 0 }; });
+    slots.forEach((s) => {
+      if (!stats[s.courseName]) stats[s.courseName] = { booked: 0, available: 0 };
+      if (s.isBooked) stats[s.courseName].booked += 1;
+      else stats[s.courseName].available += 1;
+    });
+    return stats;
+  }, [slots]);
+
+  const totals = useMemo(() => {
+    const booked = slots.filter((s) => s.isBooked).length;
+    return { total: slots.length, booked, available: slots.length - booked };
+  }, [slots]);
+
+  /* ── 신청 ── */
+  const handleBookingSubmit = async (slot, form) => {
+    const target = state.slots.find((s) => s.id === slot.id);
+    if (!target || target.isBooked) {
+      return { ok: false, error: '이미 신청이 완료된 일정입니다. 다른 일정을 선택해주세요.' };
+    }
+    const wsId = `ws-${Date.now()}`;
+    const newWorkshop = { id: wsId, slotId: slot.id, ...form };
+    setState((prev) => ({
+      workshops: [...prev.workshops, newWorkshop],
+      slots: prev.slots.map((s) =>
+        s.id === slot.id ? { ...s, isBooked: true, bookedWorkshopId: wsId } : s
+      ),
+    }));
+    return { ok: true };
+  };
+
+  /* ── 신청 취소 (신청 비밀번호 확인) ── */
+  const removeBooking = (workshop) => {
+    setState((prev) => ({
+      workshops: prev.workshops.filter((w) => w.id !== workshop.id),
+      slots: prev.slots.map((s) =>
+        s.bookedWorkshopId === workshop.id || s.id === workshop.slotId
+          ? { ...s, isBooked: false, bookedWorkshopId: null }
+          : s
+      ),
+    }));
+    setSelectedWorkshop(null);
+  };
+
+  const handleCancelBooking = async (workshop, password) => {
+    if (workshop.password && String(workshop.password) !== String(password)) {
+      return { ok: false, error: '비밀번호가 올바르지 않습니다. 분실 시 운영 담당자에게 문의해주세요.' };
+    }
+    removeBooking(workshop);
+    return { ok: true };
+  };
+
+  /* ── 관리자 로그인 ── */
+  const handleAdminLogin = async (password) => {
+    if (password === ADMIN_PASSWORD) {
+      setIsAdmin(true);
+      setShowAdminLogin(false);
+      return { ok: true };
+    }
+    return { ok: false, error: '비밀번호가 올바르지 않습니다.' };
+  };
+
+  /* ── 관리자 전용 핸들러 ── */
+  const handleAdminCancel = async (workshop) => {
+    removeBooking(workshop);
+    return { ok: true };
+  };
+
+  const handleAddSlot = async ({ courseName, date, time }) => {
+    const newSlotObj = {
+      id: `slot-custom-${Date.now()}`,
+      courseName,
+      date,
+      time: time.trim(),
+      isBooked: false,
+      bookedWorkshopId: null,
+    };
+    setState((prev) => ({ ...prev, slots: [...prev.slots, newSlotObj] }));
+    return { ok: true };
+  };
+
+  const handleDeleteSlot = async (slot) => {
+    setState((prev) => ({
+      workshops: prev.workshops.filter((w) => w.slotId !== slot.id && w.id !== slot.bookedWorkshopId),
+      slots: prev.slots.filter((s) => s.id !== slot.id),
+    }));
+    return { ok: true };
+  };
+
+  const handleEditSlot = async (slot, changes) => {
+    setState((prev) => ({
+      ...prev,
+      slots: prev.slots.map((s) =>
+        s.id === slot.id
+          ? { ...s, courseName: changes.courseName, date: changes.date, time: changes.time }
+          : s
+      ),
+    }));
+    return { ok: true };
+  };
+
+  const handleReset = async () => {
+    setState({ slots: buildInitialSlots(), workshops: [] });
+    return { ok: true };
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-12">
+      {/* 상단 히어로 */}
+      <header className="mb-8 md:mb-10">
+        <div className="flex flex-wrap items-end justify-between gap-6">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <div className="w-11 h-11 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-200">
+                <UsersIcon className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-[11px] font-black text-blue-600 uppercase tracking-[0.2em]">Kolon HRD Center</p>
+                <h1 className="text-2xl md:text-3xl font-black text-gray-900 leading-tight">2026 Team Up 워크숍</h1>
+              </div>
+            </div>
+            <p className="text-sm text-gray-500 font-semibold mt-3 max-w-xl leading-relaxed">
+              7월부터 12월까지 운영되는 팀 단위 워크숍 프로그램입니다.<br />
+              6개 과목 중 우리 팀에 필요한 과정을 선택하고 희망 일정을 신청하세요.
+            </p>
+          </div>
+
+          {/* 전체 현황 */}
+          <div className="flex gap-3">
+            {[
+              { label: '전체 일정', value: `${totals.total}회`, accent: 'text-gray-900' },
+              { label: '신청 가능', value: `${totals.available}회`, accent: 'text-blue-600' },
+              { label: '신청 완료', value: `${totals.booked}회`, accent: 'text-amber-600' },
+            ].map((item) => (
+              <div key={item.label} className="px-5 py-3.5 bg-white rounded-2xl border border-gray-100 shadow-sm text-center min-w-[92px]">
+                <div className={cn("text-xl font-black leading-none", item.accent)}>{item.value}</div>
+                <div className="text-[11px] font-bold text-gray-400 mt-1.5">{item.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </header>
+
+      {/* 본문: 관리자 모드 or 일반 모드 */}
+      {isAdmin ? (
+        <AdminPanel
+          slots={slots}
+          workshops={workshops}
+          onAddSlot={handleAddSlot}
+          onDeleteSlot={handleDeleteSlot}
+          onEditSlot={handleEditSlot}
+          onCancelBooking={handleAdminCancel}
+          onReset={handleReset}
+          onLogout={() => setIsAdmin(false)}
+        />
+      ) : (
+        <CourseScheduleList
+          slots={slots}
+          workshops={workshops}
+          courseStats={courseStats}
+          onSelectSlot={(slot) => setSelectedSlot(slot)}
+          onSelectWorkshop={(ws) => setSelectedWorkshop(ws)}
+        />
+      )}
+
+      {/* 푸터 */}
+      <footer className="text-center text-[12px] text-gray-400 font-semibold pb-6">
+        <p className="flex items-center justify-center gap-1.5">
+          <Building2 className="w-3.5 h-3.5" />
+          코오롱인재개발센터 인재개발팀 | 2026 Team UP프로그램 담당자 이미경 수석 031-289-2512/ mklee@kolon.com
+        </p>
+        <p className="mt-1.5">문의사항은 인재개발팀 담당자에게 연락주세요.</p>
+        {!isAdmin && (
+          <button
+            onClick={() => setShowAdminLogin(true)}
+            className="mt-4 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-bold text-gray-300 hover:text-gray-500 hover:bg-gray-100 transition-all">
+            <LockIcon className="w-3 h-3" />
+            관리자
+          </button>
+        )}
+      </footer>
+
+      {/* 모달 */}
+      {showAdminLogin && (
+        <AdminLoginModal
+          onClose={() => setShowAdminLogin(false)}
+          onLogin={handleAdminLogin}
+        />
+      )}
+      {selectedSlot && (
+        <BookingModal
+          slot={selectedSlot}
+          onClose={() => setSelectedSlot(null)}
+          onSubmit={handleBookingSubmit}
+        />
+      )}
+      {selectedWorkshop && (
+        <WorkshopDetailModal
+          workshop={selectedWorkshop}
+          slots={slots}
+          onClose={() => setSelectedWorkshop(null)}
+          onCancelBooking={handleCancelBooking}
+        />
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
