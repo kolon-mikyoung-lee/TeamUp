@@ -152,7 +152,7 @@ const PencilIcon    = (p) => <Svg {...p}><path d="M21.17 6.83a2.85 2.85 0 0 0-4-
    2) 발급된 웹 앱 URL(https://script.google.com/macros/s/.../exec)을
       아래 API_URL의 따옴표 안에 붙여넣으세요.
 ───────────────────────────────────────────── */
-const API_URL = 'https://script.google.com/macros/s/AKfycbzo9bo7ECtpAZXPUmJuLRL7rtrD3RR8PRVGYWYekaCkA9I81TGDSp7eymwa9DPNDmZG3w/exec';
+const API_URL = '여기에_웹앱_URL_붙여넣기';
 
 const API_CONFIGURED = API_URL.indexOf('https://script.google.com/') === 0;
 
@@ -264,9 +264,30 @@ function CourseScheduleList({ slots, workshops, courseStats, onSelectSlot, onSel
         <p className="text-gray-500 mt-2 text-sm leading-relaxed max-w-2xl">
           비전 수립부터 MBTI 팀 빌딩까지, 우리 팀에 꼭 필요한 과정의 월별 신청 일자를 확인하고 손쉽게 예약 신청해보세요.
         </p>
-        <div className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-2 bg-amber-50 border border-amber-100 rounded-xl text-[13px] font-bold text-amber-700">
-          <ShieldCheck className="w-4 h-4 shrink-0" />
-          지방 사업장(구미·기타)은 <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded text-[11px] font-black mx-0.5">지방사업장</span> 표기된 일정만 신청 가능합니다.
+        <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-2xl">
+          <div className="flex items-start gap-2.5 mb-3">
+            <ShieldCheck className="w-4 h-4 shrink-0 text-blue-600 mt-0.5" />
+            <p className="text-[13px] font-extrabold text-blue-800 leading-relaxed">
+              각 사업장은 해당 지역으로 표기된 일정만 신청 가능합니다.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[12px] font-bold">
+            <div className="bg-white border border-blue-100 rounded-xl p-3">
+              <p className="text-indigo-600 font-extrabold mb-1.5">🏢 수도권</p>
+              <div className="flex flex-wrap gap-1.5">
+                <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-lg text-[12px] font-black">수도권_과천</span>
+                <span className="px-2.5 py-1 bg-violet-50 text-violet-700 border border-violet-100 rounded-lg text-[12px] font-black">수도권_마곡</span>
+                <span className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg text-[12px] font-black">수도권_기타</span>
+              </div>
+            </div>
+            <div className="bg-white border border-emerald-100 rounded-xl p-3">
+              <p className="text-emerald-700 font-extrabold mb-1.5">🏭 지방 사업장</p>
+              <div className="flex flex-wrap gap-1.5">
+                <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg text-[12px] font-black">지방사업장_구미</span>
+                <span className="px-2.5 py-1 bg-teal-50 text-teal-700 border border-teal-100 rounded-lg text-[12px] font-black">지방사업장_기타</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -301,7 +322,7 @@ function CourseScheduleList({ slots, workshops, courseStats, onSelectSlot, onSel
                 )}>
                   <Icon className="w-5 h-5" />
                 </div>
-                <div className="flex flex-col items-end gap-1 text-[10px] font-bold">
+                <div className="flex flex-col items-end gap-1 text-[11px] font-bold">
                   {REGIONS.map((r) => {
                     const cnt = (courseStats[courseName] && courseStats[courseName].regionCounts && courseStats[courseName].regionCounts[r]) || 0;
                     if (cnt === 0) return null;
@@ -414,7 +435,7 @@ function CourseScheduleList({ slots, workshops, courseStats, onSelectSlot, onSel
                                 <div className="text-[16px] font-extrabold text-gray-900 flex items-center gap-1.5 flex-wrap">
                                   <span>{formattedDate}</span>
                                   <span className="text-blue-600 font-black">({koreanDayName(slot.date)})</span>
-                                  <span className={cn("px-2 py-0.5 rounded-md text-[11px] font-black", regionBadgeClass(slot.region))}>
+                                  <span className={cn("px-2.5 py-1 rounded-lg text-[13px] font-black", regionBadgeClass(slot.region))}>
                                     {slot.region || '수도권'}
                                   </span>
                                 </div>
@@ -549,7 +570,7 @@ function BookingModal({ slot, onClose, onSubmit }) {
                       <ClockIcon className="w-3.5 h-3.5 text-blue-500" />
                       {slot.time}
                     </span>
-                    <span className={cn("px-2 py-0.5 rounded-md text-[11px] font-black", regionBadgeClass(slot.region))}>
+                    <span className={cn("px-2.5 py-1 rounded-lg text-[13px] font-black", regionBadgeClass(slot.region))}>
                       {slot.region || '수도권'}
                     </span>
                   </div>
@@ -740,7 +761,7 @@ function WorkshopDetailModal({ workshop, slots, onClose, onCancelBooking, onModi
                     <ClockIcon className="w-3.5 h-3.5 text-blue-500" />
                     {slot.time}
                   </span>
-                  <span className={cn("px-2 py-0.5 rounded-md text-[11px] font-black", regionBadgeClass(slot.region))}>
+                  <span className={cn("px-2.5 py-1 rounded-lg text-[13px] font-black", regionBadgeClass(slot.region))}>
                     {slot.region || '수도권'}
                   </span>
                 </div>
@@ -802,7 +823,7 @@ function WorkshopDetailModal({ workshop, slots, onClose, onCancelBooking, onModi
                         <span>{s.courseName}</span>
                         <span className="text-blue-600">·</span>
                         <span>{formatFullDate(s.date)} ({koreanDayName(s.date)})</span>
-                        <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-black", regionBadgeClass(s.region))}>{s.region || '수도권'}</span>
+                        <span className={cn("px-2 py-0.5 rounded-md text-[12px] font-black", regionBadgeClass(s.region))}>{s.region || '수도권'}</span>
                       </div>
                       <div className="text-[12px] text-gray-400 font-bold mt-0.5">{s.time}</div>
                     </div>
@@ -1294,7 +1315,7 @@ function AdminPanel({ slots, workshops, onAddSlot, onDeleteSlot, onEditSlot, onC
                           {formatFullDate(s.date)} ({koreanDayName(s.date)})
                           <div className="text-[11px] text-gray-400 font-bold flex items-center gap-1.5 mt-0.5">
                             <span>{s.time}</span>
-                            <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-black", regionBadgeClass(s.region))}>{s.region || '수도권'}</span>
+                            <span className={cn("px-2 py-0.5 rounded-md text-[12px] font-black", regionBadgeClass(s.region))}>{s.region || '수도권'}</span>
                           </div>
                         </td>
                         <td className="py-3.5 pr-3 font-bold text-gray-700 whitespace-nowrap">{w.companyName}<br /><span className="text-gray-400 text-[12px]">{w.departmentName}</span></td>
@@ -1363,7 +1384,7 @@ function AdminPanel({ slots, workshops, onAddSlot, onDeleteSlot, onEditSlot, onC
                           {formatFullDate(s.date)} ({koreanDayName(s.date)})
                           <div className="text-[11px] text-gray-400 font-bold flex items-center gap-1.5 mt-0.5">
                             <span>{s.time}</span>
-                            <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-black", regionBadgeClass(s.region))}>{s.region || '수도권'}</span>
+                            <span className={cn("px-2 py-0.5 rounded-md text-[12px] font-black", regionBadgeClass(s.region))}>{s.region || '수도권'}</span>
                           </div>
                         </td>
                         <td className="py-3.5 pr-3 font-bold text-gray-700 whitespace-nowrap">{w.companyName}<br /><span className="text-gray-400 text-[12px]">{w.departmentName}</span></td>
