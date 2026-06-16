@@ -324,12 +324,24 @@ function CourseScheduleList({ slots, workshops, courseStats, onSelectSlot, onSel
                   : "bg-gray-50/50 border-gray-100 hover:border-blue-100 hover:bg-white hover:shadow-md cursor-pointer"
               )}
             >
-              {/* 아이콘 */}
-              <div className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110",
-                meta.bgColor, meta.textColor
-              )}>
-                <Icon className="w-5 h-5" />
+              {/* 아이콘 + 수도권/지방 배지 한 행 */}
+              <div className="flex items-center justify-between w-full">
+                <div className={cn(
+                  "w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110",
+                  meta.bgColor, meta.textColor
+                )}>
+                  <Icon className="w-5 h-5" />
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded-md text-[10px] font-black">
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block" />
+                    수도권 {capitalCount}
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded-md text-[10px] font-black">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                    지방 {localCount}
+                  </span>
+                </div>
               </div>
 
               {/* 과목명 */}
@@ -339,17 +351,8 @@ function CourseScheduleList({ slots, workshops, courseStats, onSelectSlot, onSel
 
               {/* 진행 바 */}
               <div className="mt-auto">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-1.5">
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-100 text-indigo-700 rounded-lg text-[11px] font-black">
-                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block" />
-                      수도권 {capitalCount}
-                    </span>
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-[11px] font-black">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-                      지방 {localCount}
-                    </span>
-                  </div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] font-bold text-amber-500">신청완료 {bookedPct}%</span>
                   <span className="text-[11px] font-bold text-gray-400">{bookedCount}/{totalCount}</span>
                 </div>
                 <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -357,9 +360,6 @@ function CourseScheduleList({ slots, workshops, courseStats, onSelectSlot, onSel
                     className="h-full bg-amber-400 rounded-full transition-all duration-500"
                     style={{ width: `${bookedPct}%` }}
                   />
-                </div>
-                <div className="text-[13px] font-bold text-amber-500 mt-1">
-                  신청완료 {bookedPct}%
                 </div>
               </div>
 
@@ -1786,7 +1786,7 @@ function App() {
               <img
                 src="https://kolon-mikyoung-lee.github.io/TeamUp/kolon_hrd_center.png"
                 alt="Kolon HRD Center"
-                className="h-5 md:h-6 w-auto object-contain"
+                className="h-4 w-auto object-contain"
               />
             </div>
             <h1 className="text-2xl md:text-3xl font-black text-gray-900 leading-tight mt-2">2026 Team Up 워크숍</h1>
