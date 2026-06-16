@@ -327,18 +327,18 @@ function CourseScheduleList({ slots, workshops, courseStats, onSelectSlot, onSel
               {/* 아이콘 + 수도권/지방 배지 한 행 */}
               <div className="flex items-center justify-between w-full">
                 <div className={cn(
-                  "w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110",
+                  "w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 flex-shrink-0",
                   meta.bgColor, meta.textColor
                 )}>
                   <Icon className="w-5 h-5" />
                 </div>
-                <div className="flex items-center gap-1">
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded-md text-[10px] font-black">
-                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block" />
+                <div className="flex flex-col items-end gap-1 ml-2">
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded-md text-[10px] font-black whitespace-nowrap">
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block flex-shrink-0" />
                     수도권 {capitalCount}
                   </span>
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded-md text-[10px] font-black">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded-md text-[10px] font-black whitespace-nowrap">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block flex-shrink-0" />
                     지방 {localCount}
                   </span>
                 </div>
