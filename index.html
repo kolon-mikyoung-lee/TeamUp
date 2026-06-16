@@ -454,6 +454,9 @@ function CourseScheduleList({ slots, workshops, courseStats, onSelectSlot, onSel
                                           <div className="text-[16px] font-extrabold text-gray-900 flex items-center gap-1.5 flex-wrap">
                                             <span>{formattedDate}</span>
                                             <span className="text-blue-600 font-black">({koreanDayName(slot.date)})</span>
+                                            <span className={cn("px-2.5 py-1 rounded-lg text-[12px] font-black", regionBadgeClass(slot.region))}>
+                                              {slot.region || '수도권_기타'}
+                                            </span>
                                           </div>
                                           <div className="text-[13px] text-gray-500 font-bold mt-1.5 flex flex-wrap items-center gap-1.5">
                                             <span>시간: {slot.time}</span>
@@ -1460,7 +1463,7 @@ function AdminPanel({ slots, workshops, onAddSlot, onDeleteSlot, onEditSlot, onC
           )}
         </div>
 
-        {/* 과목별 일정 목록 / 삭제 */}
+        {/* 과목별 일정 목록 — 월별 그룹핑 */}
         <div className="flex flex-wrap gap-2 mb-4">
           {COURSE_NAMES.map((c) => (
             <button key={c} onClick={() => setManageCourse(c)}
@@ -1475,45 +1478,80 @@ function AdminPanel({ slots, workshops, onAddSlot, onDeleteSlot, onEditSlot, onC
           ))}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-          {manageSlots.map((s) => (
-            <div key={s.id} className="flex items-center justify-between gap-3 px-4 py-3 bg-white border border-gray-100 rounded-xl hover:border-gray-200 transition-all">
-              <div className="flex items-center gap-3">
-                <div className={cn("w-1.5 h-8 rounded-full", s.isBooked ? "bg-amber-400" : "bg-blue-500")} />
-                <div>
-                  <span className="text-sm font-extrabold text-gray-900">{formatFullDate(s.date)} ({koreanDayName(s.date)})</span>
-                  <div className="text-[12px] text-gray-400 font-bold">{s.time} · {s.region || '수도권'} · {s.isBooked ? '신청 완료' : '신청 가능'}</div>
+        {manageSlots.length === 0 ? (
+          <div className="text-center py-8 bg-slate-50/90 rounded-xl border border-slate-100 text-sm text-gray-400 italic">
+            등록된 일정이 없습니다. 위에서 새 일정을 추가해보세요.
+          </div>
+        ) : (() => {
+          /* 월별 그룹핑 */
+          const monthMap = {};
+          manageSlots.forEach((s) => {
+            const m = monthLabel(s.date);
+            if (!monthMap[m]) monthMap[m] = [];
+            monthMap[m].push(s);
+          });
+          const months = Object.keys(monthMap).sort((a, b) => {
+            return (parseInt(a) || 0) - (parseInt(b) || 0);
+          });
+
+          return (
+            <div className="space-y-6">
+              {months.map((month) => (
+                <div key={month}>
+                  {/* 월 라벨 */}
+                  <div className="flex items-center gap-2 mb-2.5">
+                    <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-gray-900 text-white rounded-full text-[12px] font-black">
+                      <CalendarIcon className="w-3.5 h-3.5" />
+                      {month} 일정
+                    </span>
+                    <span className="text-[12px] text-gray-400 font-bold">{monthMap[month].length}건</span>
+                  </div>
+
+                  {/* 해당 월 일정 목록 */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                    {monthMap[month].map((s) => (
+                      <div key={s.id} className="flex items-center justify-between gap-3 px-4 py-3 bg-white border border-gray-100 rounded-xl hover:border-gray-200 transition-all">
+                        <div className="flex items-center gap-3">
+                          <div className={cn("w-1.5 h-8 rounded-full flex-shrink-0", s.isBooked ? "bg-amber-400" : "bg-blue-500")} />
+                          <div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-sm font-extrabold text-gray-900">{formatFullDate(s.date)} ({koreanDayName(s.date)})</span>
+                              <span className={cn("px-2 py-0.5 rounded-md text-[11px] font-black", regionBadgeClass(s.region))}>{s.region || '수도권_기타'}</span>
+                            </div>
+                            <div className="text-[12px] text-gray-400 font-bold mt-0.5">
+                              {s.time} · {s.isBooked ? <span className="text-amber-500">신청 완료</span> : <span className="text-blue-500">신청 가능</span>}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <button
+                            onClick={() => setEditingSlot(s)}
+                            className="p-2 rounded-lg text-gray-300 hover:text-blue-600 hover:bg-blue-50 transition-all"
+                            aria-label="일정 수정">
+                            <PencilIcon className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setConfirmState({
+                              title: '일정 삭제',
+                              message: s.isBooked
+                                ? '이 일정에는 신청 내역이 있습니다.\n일정과 신청 내역을 함께 삭제하시겠습니까?'
+                                : `${formatFullDate(s.date)} (${koreanDayName(s.date)}) 일정을 삭제하시겠습니까?`,
+                              confirmLabel: '삭제',
+                              action: () => runAction(() => onDeleteSlot(s)),
+                            })}
+                            className="p-2 rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition-all"
+                            aria-label="일정 삭제">
+                            <TrashIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setEditingSlot(s)}
-                  className="p-2 rounded-lg text-gray-300 hover:text-blue-600 hover:bg-blue-50 transition-all"
-                  aria-label="일정 수정">
-                  <PencilIcon className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setConfirmState({
-                    title: '일정 삭제',
-                    message: s.isBooked
-                      ? '이 일정에는 신청 내역이 있습니다.\n일정과 신청 내역을 함께 삭제하시겠습니까?'
-                      : `${formatFullDate(s.date)} (${koreanDayName(s.date)}) 일정을 삭제하시겠습니까?`,
-                    confirmLabel: '삭제',
-                    action: () => runAction(() => onDeleteSlot(s)),
-                  })}
-                  className="p-2 rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition-all"
-                  aria-label="일정 삭제">
-                  <TrashIcon className="w-4 h-4" />
-                </button>
-              </div>
+              ))}
             </div>
-          ))}
-          {manageSlots.length === 0 && (
-            <div className="md:col-span-2 text-center py-8 bg-slate-50/90 rounded-xl border border-slate-100 text-sm text-gray-400 italic">
-              등록된 일정이 없습니다. 위에서 새 일정을 추가해보세요.
-            </div>
-          )}
-        </div>
+          );
+        })()}
 
         {/* 데이터 초기화 */}
         <div className="mt-6 pt-5 border-t border-gray-100 flex items-center justify-between gap-4 flex-wrap">
