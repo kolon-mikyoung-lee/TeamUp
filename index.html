@@ -141,6 +141,7 @@ const ClockIcon     = (p) => <Svg {...p}><circle cx="12" cy="12" r="10" /><path 
 const Building2     = (p) => <Svg {...p}><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z" /><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" /><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2" /><path d="M10 6h4M10 10h4M10 14h4M10 18h4" /></Svg>;
 const LockIcon      = (p) => <Svg {...p}><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></Svg>;
 const DownloadIcon  = (p) => <Svg {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><path d="M12 15V3" /></Svg>;
+const EyeIcon       = (p) => <Svg {...p}><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></Svg>;
 const TrashIcon     = (p) => <Svg {...p}><path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M10 11v6M14 11v6" /></Svg>;
 const PlusIcon      = (p) => <Svg {...p}><path d="M5 12h14M12 5v14" /></Svg>;
 const LogOutIcon    = (p) => <Svg {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><path d="M21 12H9" /></Svg>;
@@ -299,10 +300,11 @@ function CourseScheduleList({ slots, workshops, courseStats, onSelectSlot, onSel
           const meta = COURSE_METADATA[courseName];
           const Icon = meta.icon;
           const isSelected = expandedCourse === courseName;
-          const availableCount = (courseStats[courseName] && courseStats[courseName].available) || 0;
           const capitalCount = (courseStats[courseName] && courseStats[courseName].availableCapital) || 0;
           const localCount = (courseStats[courseName] && courseStats[courseName].availableLocal) || 0;
           const bookedCount = (courseStats[courseName] && courseStats[courseName].booked) || 0;
+          const totalCount = capitalCount + localCount + bookedCount;
+          const bookedPct = totalCount > 0 ? Math.round((bookedCount / totalCount) * 100) : 0;
 
           return (
             <button
@@ -316,41 +318,48 @@ function CourseScheduleList({ slots, workshops, courseStats, onSelectSlot, onSel
                   : "bg-gray-50/50 border-gray-100 hover:border-blue-100 hover:bg-white hover:shadow-md cursor-pointer"
               )}
             >
-              {/* Top Row Icon & Stat Summary */}
-              <div className="flex items-start justify-between w-full mb-4">
+              {/* Top Row: 아이콘 */}
+              <div className="flex items-start justify-between w-full mb-3">
                 <div className={cn(
                   "w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110",
                   meta.bgColor, meta.textColor
                 )}>
                   <Icon className="w-5 h-5" />
                 </div>
-                <div className="flex flex-col items-end gap-1 text-[11px] font-bold">
-                  {REGIONS.map((r) => {
-                    const cnt = (courseStats[courseName] && courseStats[courseName].regionCounts && courseStats[courseName].regionCounts[r]) || 0;
-                    if (cnt === 0) return null;
-                    const m = REGION_META[r] || {};
-                    const label = r.replace('지방사업장_', '지방_');
-                    return (
-                      <span key={r} className={cn("px-2 py-0.5 rounded-full flex items-center gap-0.5", m.badge100 || 'bg-gray-100', m.text || 'text-gray-500')}>
-                        <TrendingUp className="w-2.5 h-2.5" />
-                        {label} {cnt}
-                      </span>
-                    );
-                  })}
-                  {bookedCount > 0 && (
-                    <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full flex items-center gap-0.5">
-                      <ShieldCheck className="w-2.5 h-2.5" />
-                      신청완료 {bookedCount}
-                    </span>
-                  )}
-                </div>
               </div>
 
-              {/* Course Info */}
-              <div className="mt-2">
+              {/* 과목명 */}
+              <div className="mb-3">
                 <h3 className="font-extrabold text-gray-950 text-[18px] leading-snug group-hover:text-blue-600 transition-colors">
                   {courseName}
                 </h3>
+              </div>
+
+              {/* 수도권 / 지방 신청 현황 */}
+              <div className="flex items-center justify-between text-[11px] font-bold mb-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center gap-1 text-indigo-600">
+                    <span className="w-2 h-2 rounded-full bg-indigo-400 inline-block" />
+                    수도권 {capitalCount}건
+                  </span>
+                  <span className="flex items-center gap-1 text-emerald-600">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />
+                    지방 {localCount}건
+                  </span>
+                </div>
+                <span className="text-gray-400">{bookedCount}/{totalCount}</span>
+              </div>
+
+              {/* 진행 바 */}
+              <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-amber-400 rounded-full transition-all duration-500"
+                  style={{ width: `${bookedPct}%` }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[10px] font-bold mt-1">
+                <span className="text-amber-500">신청완료 {bookedCount}건</span>
+                <span className="text-gray-400">{bookedPct}%</span>
               </div>
 
               {/* Accent active bar */}
@@ -1773,26 +1782,42 @@ function App() {
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div>
             <div className="flex items-center gap-2.5">
-              <div className="w-11 h-11 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-200">
-                <UsersIcon className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-[11px] font-black text-blue-600 uppercase tracking-[0.2em]">Kolon HRD Center</p>
-                <h1 className="text-2xl md:text-3xl font-black text-gray-900 leading-tight">2026 Team Up 워크숍</h1>
-              </div>
+              <img
+                src="https://kolon-mikyoung-lee.github.io/TeamUp/kolon_hrd_center.png"
+                alt="Kolon HRD Center"
+                className="h-10 md:h-12 w-auto object-contain"
+              />
             </div>
+            <h1 className="text-2xl md:text-3xl font-black text-gray-900 leading-tight mt-2">2026 Team Up 워크숍</h1>
             <p className="text-sm text-gray-500 font-semibold mt-3 max-w-xl leading-relaxed">
               7월부터 12월까지 운영되는 팀 단위 워크숍 프로그램입니다.<br />
               6개 과목 중 우리 팀에 필요한 과정을 선택하고 희망 일정을 신청하세요.
             </p>
-            <a
-              href="https://kolon-mikyoung-lee.github.io/TeamUp/2026 Team Up_workshop.pdf"
-              download
-              className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-black transition-all active:scale-95 shadow-sm shadow-blue-100"
-            >
-              <DownloadIcon className="w-4 h-4" />
-              2026 Team Up 워크숍 브로셔 다운로드
-            </a>
+            {/* 브로셔 버튼 */}
+            <div className="mt-4 flex flex-wrap gap-2.5">
+              <a
+                href="https://kolon-mikyoung-lee.github.io/TeamUp/2026 Team Up_workshop.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-black transition-all active:scale-95 shadow-sm shadow-blue-100"
+              >
+                <EyeIcon className="w-4 h-4" />
+                워크숍 브로셔 보기
+              </a>
+              <a
+                href="https://kolon-mikyoung-lee.github.io/TeamUp/2026 Team Up_workshop.pdf"
+                download="2026 Team Up 워크숍 브로셔.pdf"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-white hover:bg-gray-50 text-blue-600 border border-blue-200 hover:border-blue-300 rounded-xl text-sm font-black transition-all active:scale-95"
+              >
+                <DownloadIcon className="w-4 h-4" />
+                브로셔 저장
+              </a>
+            </div>
+            {/* 과목 클릭 안내 */}
+            <div className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 bg-blue-50 border border-blue-100 rounded-xl">
+              <span className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[11px] font-black flex-shrink-0">↓</span>
+              <span className="text-[13px] text-blue-700 font-extrabold">과목 카드를 클릭하면 해당 과목의 신청 가능 일정을 확인할 수 있습니다.</span>
+            </div>
           </div>
 
           {/* 전체 현황 */}
