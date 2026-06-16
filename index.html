@@ -333,23 +333,23 @@ function CourseScheduleList({ slots, workshops, courseStats, onSelectSlot, onSel
               </div>
 
               {/* 과목명 */}
-              <h3 className="font-extrabold text-gray-950 text-[17px] leading-snug group-hover:text-blue-600 transition-colors">
+              <h3 className="font-extrabold text-gray-950 text-[19px] leading-snug group-hover:text-blue-600 transition-colors">
                 {courseName}
               </h3>
 
               {/* 진행 바 */}
               <div className="mt-auto">
-                <div className="flex items-center justify-between text-[11px] font-bold text-gray-400 mb-1.5">
+                <div className="flex items-center justify-between text-[13px] font-bold text-gray-400 mb-1.5">
                   <span>수도권 {capitalCount} · 지방 {localCount}</span>
                   <span>{bookedCount}/{totalCount}건</span>
                 </div>
-                <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-amber-400 rounded-full transition-all duration-500"
                     style={{ width: `${bookedPct}%` }}
                   />
                 </div>
-                <div className="text-[11px] font-bold text-amber-500 mt-1">
+                <div className="text-[13px] font-bold text-amber-500 mt-1">
                   신청완료 {bookedPct}%
                 </div>
               </div>
@@ -1777,7 +1777,7 @@ function App() {
               <img
                 src="https://kolon-mikyoung-lee.github.io/TeamUp/kolon_hrd_center.png"
                 alt="Kolon HRD Center"
-                className="h-10 md:h-12 w-auto object-contain"
+                className="h-7 md:h-8 w-auto object-contain"
               />
             </div>
             <h1 className="text-2xl md:text-3xl font-black text-gray-900 leading-tight mt-2">2026 Team Up 워크숍</h1>
