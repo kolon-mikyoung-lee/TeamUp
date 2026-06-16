@@ -238,8 +238,10 @@ function CourseScheduleList({ slots, workshops, courseStats, onSelectSlot, onSel
     const grouped = {};
     courseSlots.forEach((slot) => {
       const m = monthLabel(slot.date);
-      if (!grouped[m]) grouped[m] = [];
-      grouped[m].push(slot);
+      if (!grouped[m]) grouped[m] = {};
+      const r = slot.region || '수도권_기타';
+      if (!grouped[m][r]) grouped[m][r] = [];
+      grouped[m][r].push(slot);
     });
     return grouped;
   };
@@ -385,7 +387,7 @@ function CourseScheduleList({ slots, workshops, courseStats, onSelectSlot, onSel
             </div>
           </div>
 
-          {/* List Grouped by Month */}
+          {/* List Grouped by Month → Region */}
           {(() => {
             const grouped = getGroupedSlotsByMonth(expandedCourse);
             const months = Object.keys(grouped).sort((a, b) => {
@@ -404,91 +406,110 @@ function CourseScheduleList({ slots, workshops, courseStats, onSelectSlot, onSel
 
             return (
               <div className="space-y-8">
-                {months.map((month) => (
-                  <div key={month} className="space-y-3">
-                    {/* Month Label */}
-                    <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-white border border-gray-200 rounded-full text-sm font-black text-gray-800 shadow-sm">
-                      <CalendarIcon className="w-4 h-4 text-blue-500" />
-                      {month} 일정
-                    </span>
+                {months.map((month) => {
+                  const regionMap = grouped[month];
+                  const regions = REGIONS.filter((r) => regionMap[r] && regionMap[r].length > 0);
 
-                    {/* Slots block */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {grouped[month].map((slot) => {
-                        const isBooked = slot.isBooked;
-                        const formattedDate = formatFullDate(slot.date);
+                  return (
+                    <div key={month} className="space-y-4">
+                      {/* Month Label */}
+                      <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-white border border-gray-200 rounded-full text-sm font-black text-gray-800 shadow-sm">
+                        <CalendarIcon className="w-4 h-4 text-blue-500" />
+                        {month} 일정
+                      </span>
 
-                        return (
-                          <div
-                            key={slot.id}
-                            className={cn(
-                              "p-4 rounded-xl border transition-all flex items-center justify-between gap-4 bg-white",
-                              isBooked
-                                ? "border-amber-100 hover:border-amber-200/80 shadow-sm"
-                                : "border-gray-100 hover:border-blue-200/80 hover:shadow-md"
-                            )}
-                          >
-                            <div className="flex items-center gap-3">
-                              {/* Left indicator */}
-                              <div className={cn("w-2 h-10 rounded-full", isBooked ? "bg-amber-400" : "bg-blue-500")} />
-                              <div>
-                                <div className="text-[16px] font-extrabold text-gray-900 flex items-center gap-1.5 flex-wrap">
-                                  <span>{formattedDate}</span>
-                                  <span className="text-blue-600 font-black">({koreanDayName(slot.date)})</span>
-                                  <span className={cn("px-2.5 py-1 rounded-lg text-[13px] font-black", regionBadgeClass(slot.region))}>
-                                    {slot.region || '수도권'}
-                                  </span>
-                                </div>
-                                <div className="text-[13px] text-gray-500 font-bold mt-1.5 flex flex-wrap items-center gap-1.5">
-                                  <span>시간: {slot.time}</span>
-                                  {isBooked && (() => {
-                                    const ws = slot.bookedWorkshopId
-                                      ? workshops.find((w) => w.id === slot.bookedWorkshopId)
-                                      : workshops.find((w) => w.slotId === slot.id);
-                                    if (ws) {
-                                      return (
-                                        <React.Fragment>
-                                          <span className="w-px h-3 bg-gray-200 self-center mx-0.5" />
-                                          <span className="text-amber-800 font-extrabold bg-amber-50 border border-amber-100/55 px-2.5 py-1 rounded-md text-[12px]">
-                                            {ws.companyName} | {ws.departmentName}
-                                          </span>
-                                        </React.Fragment>
-                                      );
-                                    }
-                                    return null;
-                                  })()}
-                                </div>
+                      {/* Region Sub-groups */}
+                      <div className="space-y-3 pl-1">
+                        {regions.map((region) => {
+                          const meta = REGION_META[region] || {};
+                          return (
+                            <div key={region} className="space-y-2">
+                              {/* Region Label */}
+                              <div className="flex items-center gap-2">
+                                <span className={cn("px-3 py-1 rounded-lg text-[12px] font-black border", meta.bg, meta.text, meta.border)}>
+                                  {region}
+                                </span>
+                                <span className="text-[12px] text-gray-400 font-bold">{regionMap[region].length}건</span>
+                              </div>
+
+                              {/* Slots */}
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-1">
+                                {regionMap[region].map((slot) => {
+                                  const isBooked = slot.isBooked;
+                                  const formattedDate = formatFullDate(slot.date);
+
+                                  return (
+                                    <div
+                                      key={slot.id}
+                                      className={cn(
+                                        "p-4 rounded-xl border transition-all flex items-center justify-between gap-4 bg-white",
+                                        isBooked
+                                          ? "border-amber-100 hover:border-amber-200/80 shadow-sm"
+                                          : "border-gray-100 hover:border-blue-200/80 hover:shadow-md"
+                                      )}
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        <div className={cn("w-2 h-10 rounded-full", isBooked ? "bg-amber-400" : "bg-blue-500")} />
+                                        <div>
+                                          <div className="text-[16px] font-extrabold text-gray-900 flex items-center gap-1.5 flex-wrap">
+                                            <span>{formattedDate}</span>
+                                            <span className="text-blue-600 font-black">({koreanDayName(slot.date)})</span>
+                                          </div>
+                                          <div className="text-[13px] text-gray-500 font-bold mt-1.5 flex flex-wrap items-center gap-1.5">
+                                            <span>시간: {slot.time}</span>
+                                            {isBooked && (() => {
+                                              const ws = slot.bookedWorkshopId
+                                                ? workshops.find((w) => w.id === slot.bookedWorkshopId)
+                                                : workshops.find((w) => w.slotId === slot.id);
+                                              if (ws) {
+                                                return (
+                                                  <React.Fragment>
+                                                    <span className="w-px h-3 bg-gray-200 self-center mx-0.5" />
+                                                    <span className="text-amber-800 font-extrabold bg-amber-50 border border-amber-100/55 px-2.5 py-1 rounded-md text-[12px]">
+                                                      {ws.companyName} | {ws.departmentName}
+                                                    </span>
+                                                  </React.Fragment>
+                                                );
+                                              }
+                                              return null;
+                                            })()}
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      {/* Action Buttons */}
+                                      <div>
+                                        {isBooked ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleCompletedClick(slot)}
+                                            className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-black border border-amber-600/10 transition-all flex items-center gap-1.5 active:scale-95 shadow-sm shadow-amber-100"
+                                          >
+                                            <CheckCircle2 className="w-4 h-4" />
+                                            <span>완료</span>
+                                          </button>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            onClick={() => onSelectSlot(slot)}
+                                            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-black border border-blue-700/10 transition-all flex items-center gap-1.5 active:scale-95 shadow-sm shadow-blue-100"
+                                          >
+                                            <span>신청하기</span>
+                                            <ArrowRight className="w-4 h-4" />
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </div>
-
-                            {/* Action Buttons */}
-                            <div>
-                              {isBooked ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleCompletedClick(slot)}
-                                  className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-black border border-amber-600/10 transition-all flex items-center gap-1.5 active:scale-95 shadow-sm shadow-amber-100"
-                                >
-                                  <CheckCircle2 className="w-4 h-4" />
-                                  <span>완료</span>
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => onSelectSlot(slot)}
-                                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-black border border-blue-700/10 transition-all flex items-center gap-1.5 active:scale-95 shadow-sm shadow-blue-100"
-                                >
-                                  <span>신청하기</span>
-                                  <ArrowRight className="w-4 h-4" />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             );
           })()}
