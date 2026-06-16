@@ -294,6 +294,12 @@ function CourseScheduleList({ slots, workshops, courseStats, onSelectSlot, onSel
         </div>
       </div>
 
+      {/* 과목 클릭 안내 */}
+      <div className="mb-3 inline-flex items-center gap-2 px-4 py-2.5 bg-blue-50 border border-blue-100 rounded-xl">
+        <span className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[11px] font-black flex-shrink-0">↓</span>
+        <span className="text-[13px] text-blue-700 font-extrabold">과목 카드를 클릭하면 해당 과목의 신청 가능 일정을 확인할 수 있습니다.</span>
+      </div>
+
       {/* Courses Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
         {COURSE_NAMES.map((courseName) => {
@@ -312,54 +318,40 @@ function CourseScheduleList({ slots, workshops, courseStats, onSelectSlot, onSel
               id={`course-card-${courseName}`}
               onClick={() => setExpandedCourse(isSelected ? null : courseName)}
               className={cn(
-                "p-5 rounded-2xl border text-left transition-all duration-300 relative overflow-hidden flex flex-col justify-between h-full group",
+                "p-5 rounded-2xl border text-left transition-all duration-300 relative overflow-hidden flex flex-col gap-3 h-full group",
                 isSelected
                   ? "bg-blue-50/70 border-blue-200 shadow-md ring-2 ring-blue-500/20"
                   : "bg-gray-50/50 border-gray-100 hover:border-blue-100 hover:bg-white hover:shadow-md cursor-pointer"
               )}
             >
-              {/* Top Row: 아이콘 */}
-              <div className="flex items-start justify-between w-full mb-3">
-                <div className={cn(
-                  "w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110",
-                  meta.bgColor, meta.textColor
-                )}>
-                  <Icon className="w-5 h-5" />
-                </div>
+              {/* 아이콘 */}
+              <div className={cn(
+                "w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110",
+                meta.bgColor, meta.textColor
+              )}>
+                <Icon className="w-5 h-5" />
               </div>
 
               {/* 과목명 */}
-              <div className="mb-3">
-                <h3 className="font-extrabold text-gray-950 text-[18px] leading-snug group-hover:text-blue-600 transition-colors">
-                  {courseName}
-                </h3>
-              </div>
-
-              {/* 수도권 / 지방 신청 현황 */}
-              <div className="flex items-center justify-between text-[11px] font-bold mb-1.5">
-                <div className="flex items-center gap-2">
-                  <span className="flex items-center gap-1 text-indigo-600">
-                    <span className="w-2 h-2 rounded-full bg-indigo-400 inline-block" />
-                    수도권 {capitalCount}건
-                  </span>
-                  <span className="flex items-center gap-1 text-emerald-600">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />
-                    지방 {localCount}건
-                  </span>
-                </div>
-                <span className="text-gray-400">{bookedCount}/{totalCount}</span>
-              </div>
+              <h3 className="font-extrabold text-gray-950 text-[17px] leading-snug group-hover:text-blue-600 transition-colors">
+                {courseName}
+              </h3>
 
               {/* 진행 바 */}
-              <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-amber-400 rounded-full transition-all duration-500"
-                  style={{ width: `${bookedPct}%` }}
-                />
-              </div>
-              <div className="flex items-center justify-between text-[10px] font-bold mt-1">
-                <span className="text-amber-500">신청완료 {bookedCount}건</span>
-                <span className="text-gray-400">{bookedPct}%</span>
+              <div className="mt-auto">
+                <div className="flex items-center justify-between text-[11px] font-bold text-gray-400 mb-1.5">
+                  <span>수도권 {capitalCount} · 지방 {localCount}</span>
+                  <span>{bookedCount}/{totalCount}건</span>
+                </div>
+                <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-amber-400 rounded-full transition-all duration-500"
+                    style={{ width: `${bookedPct}%` }}
+                  />
+                </div>
+                <div className="text-[11px] font-bold text-amber-500 mt-1">
+                  신청완료 {bookedPct}%
+                </div>
               </div>
 
               {/* Accent active bar */}
@@ -1812,11 +1804,6 @@ function App() {
                 <DownloadIcon className="w-4 h-4" />
                 브로셔 저장
               </a>
-            </div>
-            {/* 과목 클릭 안내 */}
-            <div className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 bg-blue-50 border border-blue-100 rounded-xl">
-              <span className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[11px] font-black flex-shrink-0">↓</span>
-              <span className="text-[13px] text-blue-700 font-extrabold">과목 카드를 클릭하면 해당 과목의 신청 가능 일정을 확인할 수 있습니다.</span>
             </div>
           </div>
 
