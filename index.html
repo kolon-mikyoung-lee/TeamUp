@@ -1219,7 +1219,7 @@ function AdminPanel({ slots, workshops, onAddSlot, onDeleteSlot, onEditSlot, onC
 
   /* 엑셀(xlsx) 다운로드 — 전체(신청+취소 이력 포함) */
   const exportExcel = () => {
-    const header = ['상태', '과목', '지역', '날짜', '요일', '시간', '회사명', '부서/팀명', '신청자', '연락처', '참석인원', '요청사항', '신청일시', '취소일시'];
+    const header = ['상태', '과목', '지역', '날짜', '요일', '시간', '회사명', '부서/팀명', '신청자', '연락처', '참석인원', '요청사항', '신청일시', '변경일시', '취소일시'];
     const rows = allRows
       .sort((a, b) => a.slot.date.localeCompare(b.slot.date))
       .map(({ workshop: w, slot: s }) => [
@@ -1227,14 +1227,14 @@ function AdminPanel({ slots, workshops, onAddSlot, onDeleteSlot, onEditSlot, onC
         s.courseName, s.region || '수도권', s.date, koreanDayName(s.date), s.time,
         w.companyName, w.departmentName, w.applicantName, w.phone,
         w.headcount || '', w.note || '',
-        w.createdAt || '', w.cancelledAt || '',
+        w.createdAt || '', w.modifiedAt || '', w.cancelledAt || '',
       ]);
 
     const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
     ws['!cols'] = [
       { wch: 10 }, { wch: 14 }, { wch: 8 }, { wch: 12 }, { wch: 6 }, { wch: 16 },
       { wch: 18 }, { wch: 18 }, { wch: 10 }, { wch: 15 },
-      { wch: 9 }, { wch: 36 }, { wch: 16 }, { wch: 16 },
+      { wch: 9 }, { wch: 36 }, { wch: 16 }, { wch: 16 }, { wch: 16 },
     ];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '전체현황');
@@ -1437,6 +1437,7 @@ function AdminPanel({ slots, workshops, onAddSlot, onDeleteSlot, onEditSlot, onC
                     <th className="py-3 pr-3">신청자</th>
                     <th className="py-3 pr-3">연락처</th>
                     <th className="py-3 pr-3">신청일시</th>
+                    <th className="py-3 pr-3">변경일시</th>
                     <th className="py-3">취소일시</th>
                   </tr>
                 </thead>
@@ -1466,6 +1467,7 @@ function AdminPanel({ slots, workshops, onAddSlot, onDeleteSlot, onEditSlot, onC
                         <td className="py-3.5 pr-3 font-bold text-gray-700 whitespace-nowrap">{w.applicantName}</td>
                         <td className="py-3.5 pr-3 font-bold text-gray-500 whitespace-nowrap">{w.phone}</td>
                         <td className="py-3.5 pr-3 text-[12px] text-gray-400 font-bold whitespace-nowrap">{w.createdAt || '-'}</td>
+                        <td className="py-3.5 pr-3 text-[12px] text-blue-400 font-bold whitespace-nowrap">{w.modifiedAt || '-'}</td>
                         <td className="py-3.5 text-[12px] text-rose-400 font-bold whitespace-nowrap">{w.cancelledAt || '-'}</td>
                       </tr>
                     );
