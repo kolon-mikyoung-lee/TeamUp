@@ -1199,6 +1199,26 @@ function SlotEditModal({ slot, onClose, onSave }) {
 }
 
 /* ─────────────────────────────────────────────
+   정렬 가능한 테이블 헤더 (관리자 패널용)
+───────────────────────────────────────────── */
+function SortTh({ colKey, sortKey, sortDir, onSort, children, className = '' }) {
+  const active = sortKey === colKey;
+  const arrow = active ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '';
+  return (
+    <th
+      className={cn(
+        "py-3 pr-3 cursor-pointer select-none whitespace-nowrap transition-colors",
+        active ? "text-blue-500" : "hover:text-gray-600",
+        className
+      )}
+      onClick={() => onSort(colKey)}
+    >
+      {children}{arrow}
+    </th>
+  );
+}
+
+/* ─────────────────────────────────────────────
    관리자 패널
 ───────────────────────────────────────────── */
 function AdminPanel({ slots, workshops, onAddSlot, onDeleteSlot, onEditSlot, onCancelBooking, onReset, onRefresh, onLogout }) {
@@ -1231,23 +1251,6 @@ function AdminPanel({ slots, workshops, onAddSlot, onDeleteSlot, onEditSlot, onC
       setSortKey(key);
       setSortDir('desc');
     }
-  };
-
-  const SortTh = ({ colKey, children, className = '' }) => {
-    const active = sortKey === colKey;
-    const arrow = active ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '';
-    return (
-      <th
-        className={cn(
-          "py-3 pr-3 cursor-pointer select-none whitespace-nowrap transition-colors",
-          active ? "text-blue-500" : "hover:text-gray-600",
-          className
-        )}
-        onClick={() => handleSort(colKey)}
-      >
-        {children}{arrow}
-      </th>
-    );
   };
 
   const allRows = workshops
@@ -1427,12 +1430,12 @@ function AdminPanel({ slots, workshops, onAddSlot, onDeleteSlot, onEditSlot, onC
                 <thead>
                   <tr className="border-b border-gray-200 text-[12px] text-gray-400 font-extrabold">
                     <th className="py-3 pr-3">과목</th>
-                    <SortTh colKey="date">일정</SortTh>
+                    <SortTh colKey="date" sortKey={sortKey} sortDir={sortDir} onSort={handleSort}>일정</SortTh>
                     <th className="py-3 pr-3">회사 / 팀</th>
                     <th className="py-3 pr-3">신청자</th>
                     <th className="py-3 pr-3">연락처</th>
                     <th className="py-3 pr-3">인원</th>
-                    <SortTh colKey="createdAt">신청일시</SortTh>
+                    <SortTh colKey="createdAt" sortKey={sortKey} sortDir={sortDir} onSort={handleSort}>신청일시</SortTh>
                     <th className="py-3 pr-3">요청사항</th>
                     <th className="py-3 text-right">관리</th>
                   </tr>
