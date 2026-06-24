@@ -1218,9 +1218,37 @@ function AdminPanel({ slots, workshops, onAddSlot, onDeleteSlot, onEditSlot, onC
     }
   };
 
-  /* 신청 내역 목록 (날짜순) */
+  /* 신청 내역 목록 */
   const [showCancelled, setShowCancelled] = useState(false);
   const [filterCourse, setFilterCourse] = useState('전체');
+  const [sortKey, setSortKey] = useState('createdAt'); // 'createdAt' | 'date'
+  const [sortDir, setSortDir] = useState('desc');      // 'asc' | 'desc'
+
+  const handleSort = (key) => {
+    if (sortKey === key) {
+      setSortDir((d) => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDir('desc');
+    }
+  };
+
+  const SortTh = ({ colKey, children, className = '' }) => {
+    const active = sortKey === colKey;
+    const arrow = active ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '';
+    return (
+      <th
+        className={cn(
+          "py-3 pr-3 cursor-pointer select-none whitespace-nowrap transition-colors",
+          active ? "text-blue-500" : "hover:text-gray-600",
+          className
+        )}
+        onClick={() => handleSort(colKey)}
+      >
+        {children}{arrow}
+      </th>
+    );
+  };
 
   const allRows = workshops
     .map((w) => {
@@ -1234,7 +1262,11 @@ function AdminPanel({ slots, workshops, onAddSlot, onDeleteSlot, onEditSlot, onC
   const bookingRows = allRows
     .filter((r) => (!r.workshop.status || r.workshop.status === '신청') &&
       (filterCourse === '전체' || r.slot.courseName === filterCourse))
-    .sort((a, b) => (b.workshop.createdAt || '').localeCompare(a.workshop.createdAt || ''));
+    .sort((a, b) => {
+      const valA = sortKey === 'date' ? a.slot.date : (a.workshop.createdAt || '');
+      const valB = sortKey === 'date' ? b.slot.date : (b.workshop.createdAt || '');
+      return sortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+    });
 
   const cancelledRows = allRows
     .filter((r) => r.workshop.status && r.workshop.status.startsWith('취소') &&
@@ -1395,12 +1427,12 @@ function AdminPanel({ slots, workshops, onAddSlot, onDeleteSlot, onEditSlot, onC
                 <thead>
                   <tr className="border-b border-gray-200 text-[12px] text-gray-400 font-extrabold">
                     <th className="py-3 pr-3">과목</th>
-                    <th className="py-3 pr-3">일정</th>
+                    <SortTh colKey="date">일정</SortTh>
                     <th className="py-3 pr-3">회사 / 팀</th>
                     <th className="py-3 pr-3">신청자</th>
                     <th className="py-3 pr-3">연락처</th>
                     <th className="py-3 pr-3">인원</th>
-                    <th className="py-3 pr-3 text-blue-500">신청일시 ↓</th>
+                    <SortTh colKey="createdAt">신청일시</SortTh>
                     <th className="py-3 pr-3">요청사항</th>
                     <th className="py-3 text-right">관리</th>
                   </tr>
