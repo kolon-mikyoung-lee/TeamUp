@@ -1205,7 +1205,7 @@ function SortTh({ colKey, sortKey, sortDir, onSort, children, className = '' }) 
   const active = sortKey === colKey;
   return (
     <th className={cn("py-3 pr-3 whitespace-nowrap", className)}>
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center justify-center gap-1.5">
         <span className={active ? "text-blue-500 font-extrabold" : "text-gray-400 font-extrabold"}>{children}</span>
         <div className="flex flex-col gap-0.5">
           <button
@@ -1439,7 +1439,7 @@ function AdminPanel({ slots, workshops, onAddSlot, onDeleteSlot, onEditSlot, onC
             <div className="overflow-x-auto -mx-2 px-2">
               <table className="w-full text-left text-sm min-w-[820px]">
                 <thead>
-                  <tr className="border-b border-gray-200 text-[12px] text-gray-400 font-extrabold">
+                  <tr className="border-b border-gray-200 text-[12px] text-gray-400 font-extrabold text-center">
                     <th className="py-3 pr-3">과목</th>
                     <SortTh colKey="date" sortKey={sortKey} sortDir={sortDir} onSort={handleSort}>일정</SortTh>
                     <th className="py-3 pr-3">회사 / 팀</th>
