@@ -1203,17 +1203,33 @@ function SlotEditModal({ slot, onClose, onSave }) {
 ───────────────────────────────────────────── */
 function SortTh({ colKey, sortKey, sortDir, onSort, children, className = '' }) {
   const active = sortKey === colKey;
-  const arrow = active ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '';
   return (
-    <th
-      className={cn(
-        "py-3 pr-3 cursor-pointer select-none whitespace-nowrap transition-colors",
-        active ? "text-blue-500" : "hover:text-gray-600",
-        className
-      )}
-      onClick={() => onSort(colKey)}
-    >
-      {children}{arrow}
+    <th className={cn("py-3 pr-3 whitespace-nowrap", className)}>
+      <div className="flex items-center gap-1.5">
+        <span className={active ? "text-blue-500 font-extrabold" : "text-gray-400 font-extrabold"}>{children}</span>
+        <div className="flex flex-col gap-0.5">
+          <button
+            onClick={() => onSort(colKey, 'asc')}
+            className={cn(
+              "w-4 h-3.5 flex items-center justify-center rounded text-[9px] leading-none transition-all",
+              active && sortDir === 'asc'
+                ? "bg-blue-500 text-white"
+                : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+            )}
+            title="오름차순"
+          >▲</button>
+          <button
+            onClick={() => onSort(colKey, 'desc')}
+            className={cn(
+              "w-4 h-3.5 flex items-center justify-center rounded text-[9px] leading-none transition-all",
+              active && sortDir === 'desc'
+                ? "bg-blue-500 text-white"
+                : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+            )}
+            title="내림차순"
+          >▼</button>
+        </div>
+      </div>
     </th>
   );
 }
@@ -1244,13 +1260,9 @@ function AdminPanel({ slots, workshops, onAddSlot, onDeleteSlot, onEditSlot, onC
   const [sortKey, setSortKey] = useState('createdAt'); // 'createdAt' | 'date'
   const [sortDir, setSortDir] = useState('desc');      // 'asc' | 'desc'
 
-  const handleSort = (key) => {
-    if (sortKey === key) {
-      setSortDir((d) => d === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortKey(key);
-      setSortDir('desc');
-    }
+  const handleSort = (key, dir) => {
+    setSortKey(key);
+    setSortDir(dir);
   };
 
   const allRows = workshops
@@ -1368,7 +1380,6 @@ function AdminPanel({ slots, workshops, onAddSlot, onDeleteSlot, onEditSlot, onC
           <h3 className="text-xl font-black text-gray-900 flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-amber-500" />
             신청 현황
-            <span className="text-[11px] font-bold text-blue-500 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full">신청순 정렬</span>
           </h3>
           <div className="flex gap-2">
             <button onClick={() => setShowCancelled(false)}
